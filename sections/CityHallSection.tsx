@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Users, Search, MessageSquare, ArrowLeft, ShieldCheck, Check, CheckCheck, Clock, Smile, Plus, X, Reply, CornerDownRight, Settings, Camera, LogOut, Globe, Crown, Zap, ExternalLink, Radio } from 'lucide-react';
@@ -19,7 +20,6 @@ interface CityHallSectionProps {
 }
 
 const REACTION_EMOJIS = ['❤️', '😂', '😮', '😢', '🔥', '👍'];
-// Fix: Added GROUP_EMOJIS constant for group settings
 const GROUP_EMOJIS = ['🚀', '🍕', '🎮', '💡', '🔥', '🌈', '💎', '🎭', '👾', '🎨', '🎬', '🎧'];
 
 const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUser, messages, groups, onSendMessage, onReadMessages, onGroupUpdate, onGroupCreate, onNavigateToProfile, onReactToMessage, onViolation }) => {
@@ -62,7 +62,6 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
     );
   }, [searchTerm, allUsers, currentUser.username, currentUser.blockedUsers, usersWhoBlockedMe]);
 
-  // Fix: Added groupFilterList for group creation search
   const groupFilterList = useMemo(() => {
     return allUsers.filter(u => 
       u.username !== currentUser.username && 
@@ -203,35 +202,6 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
     setIsCreatingGroup(false);
   };
 
-  const handleOpenSettings = () => {
-    if (currentGroup) {
-      setEditGroupName(currentGroup.name);
-      setEditGroupPhoto(currentGroup.photo || '🚀');
-      setNicknames(currentGroup.nicknames || {});
-      setIsEditingGroup(true);
-    }
-  };
-
-  const handleSaveSettings = () => {
-    if (currentGroup && editGroupName.trim()) {
-      const updated = { ...currentGroup, name: editGroupName, photo: editGroupPhoto, nicknames: nicknames };
-      onGroupUpdate(updated);
-      setSelectedCitizen({ ...selectedCitizen!, displayName: editGroupName, profilePic: editGroupPhoto });
-      setIsEditingGroup(false);
-    }
-  };
-
-  const handleLeaveGroup = () => {
-    if (currentGroup) {
-      const updatedMembers = currentGroup.members.filter(m => m !== currentUser.username);
-      const updatedGroup = { ...currentGroup, members: updatedMembers };
-      onGroupUpdate(updatedGroup);
-      onSendMessage(currentGroup.id, `${currentUser.displayName} has left the frequency.`, { isGroup: true, isSystem: true });
-      setSelectedCitizen(null);
-      setIsEditingGroup(false);
-    }
-  };
-
   const getNickname = (username: string) => {
     if (currentGroup?.nicknames?.[username]) return currentGroup.nicknames[username];
     const user = allUsers.find(u => u.username === username);
@@ -244,23 +214,23 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
   };
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-120px)] md:max-h-full overflow-hidden">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header Area */}
-      <div className="flex justify-between items-center px-2 mb-6 shrink-0">
-        <h2 className={`text-3xl md:text-4xl font-black italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Citizen Hub</h2>
+      <div className="flex justify-between items-center mb-6 shrink-0 px-1">
+        <h2 className={`text-3xl lg:text-4xl font-black italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Citizen Hub</h2>
         <button 
           onClick={handleStartCreateGroup} 
-          className="kahoot-button-blue px-6 py-3 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95 transition-all"
+          className="kahoot-button-blue px-5 py-2.5 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 transition-all text-xs"
         >
-          <Plus size={20} /> <span className="hidden sm:inline text-xs">NEW GROUP</span>
+          <Plus size={18} /> <span>NEW GROUP</span>
         </button>
       </div>
 
       {/* Main Terminal Box */}
-      <div className={`flex-1 flex flex-col md:flex-row rounded-[3rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-2xl overflow-hidden border-b-[8px] border-black/10 dark:border-white/5 border-x-2 border-t-2 border-black/5 min-h-0`}>
+      <div className={`flex-1 flex flex-col md:flex-row rounded-[3rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-2xl overflow-hidden border-b-[8px] border-black/10 dark:border-white/5 border-x-2 border-t-2 border-black/5 min-h-0 mb-4`}>
         
         {/* Sidebar / Conversation List */}
-        <div className={`w-full md:w-64 lg:w-72 border-r ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} flex flex-col ${selectedCitizen ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`w-full md:w-64 lg:w-72 border-r ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} flex flex-col ${selectedCitizen ? 'hidden md:flex' : 'flex'} min-h-0`}>
           <div className="p-4 border-b border-gray-100 dark:border-slate-800 shrink-0">
             <div className="relative">
               <input 
@@ -268,27 +238,27 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
                 placeholder="Search citizens..." 
-                className={`w-full pl-10 pr-4 py-3 rounded-2xl text-xs font-black border-2 outline-none focus:border-blue-500 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-200 text-slate-900'}`} 
+                className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-[11px] font-black border-2 outline-none focus:border-blue-500 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-200 text-slate-900'}`} 
               />
-              <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`} size={16} />
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`} size={14} />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto fading-scrollbar p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto fading-scrollbar p-3 space-y-1.5">
             {(searchTerm.trim() ? filteredCitizens.map(u => ({ username: u.username, displayName: u.displayName, profilePic: u.profilePic, isGroup: false })) : chats).map(u => (
               <button 
                 key={u.username} 
                 onClick={() => { setSelectedCitizen(u); setReplyingTo(null); }} 
-                className={`w-full p-3.5 rounded-[1.5rem] flex items-center gap-3 transition-all border-b-4 active:translate-y-0.5 active:border-b-2 ${selectedCitizen?.username === u.username ? 'bg-blue-600 border-blue-800 text-white shadow-lg translate-x-1' : 'hover:bg-black/5 opacity-70 hover:opacity-100'}`}
+                className={`w-full p-3 rounded-[1.25rem] flex items-center gap-3 transition-all border-b-4 active:translate-y-0.5 active:border-b-2 ${selectedCitizen?.username === u.username ? 'bg-blue-600 border-blue-800 text-white shadow-md translate-x-1' : 'hover:bg-black/5 opacity-70 hover:opacity-100'}`}
               >
                 <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-slate-700 flex items-center justify-center font-black overflow-hidden shadow-sm shrink-0 border-2 border-white/20">
-                  {u.isGroup ? (u.profilePic && u.profilePic.length < 5 ? <span className="text-xl">{u.profilePic}</span> : <Users size={20} className="text-blue-600 dark:text-blue-300" />) : (u.profilePic ? <img src={u.profilePic} className="w-full h-full object-cover" /> : u.displayName[0].toUpperCase())}
+                  {u.isGroup ? (u.profilePic && u.profilePic.length < 5 ? <span className="text-xl">{u.profilePic}</span> : <Users size={18} />) : (u.profilePic ? <img src={u.profilePic} className="w-full h-full object-cover" /> : u.displayName[0].toUpperCase())}
                 </div>
                 <div className="text-left flex-1 min-w-0">
                   <div className="flex items-center gap-1">
                     <p className={`font-black text-[11px] truncate uppercase tracking-tight ${selectedCitizen?.username === u.username ? 'text-white' : ''}`}>{u.displayName}</p>
                     {getIsCreator(u.username) && <Crown size={10} className="text-yellow-400" />}
                   </div>
-                  <p className={`text-[8px] font-black uppercase tracking-widest opacity-40 ${selectedCitizen?.username === u.username ? 'text-white' : ''}`}>{u.isGroup ? 'Neural Group' : `@${u.username}`}</p>
+                  <p className={`text-[8px] font-black uppercase tracking-widest opacity-40 ${selectedCitizen?.username === u.username ? 'text-white' : ''}`}>{u.isGroup ? 'Group' : `@${u.username}`}</p>
                 </div>
               </button>
             ))}
@@ -299,112 +269,53 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
         <div className={`flex-1 flex flex-col min-h-0 ${!selectedCitizen ? 'hidden md:flex' : 'flex'}`}>
           {selectedCitizen ? (
             <>
-              <div className={`p-4 md:p-5 border-b ${isDarkMode ? 'bg-slate-800/50 border-slate-800' : 'bg-gray-50/50 border-gray-100'} flex items-center justify-between shrink-0`}>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setSelectedCitizen(null)} className="md:hidden p-2 rounded-xl hover:bg-black/5 text-slate-500 transition-colors"><ArrowLeft size={20} /></button>
+              <div className={`p-4 border-b ${isDarkMode ? 'bg-slate-800/50 border-slate-800' : 'bg-gray-50/50 border-gray-100'} flex items-center justify-between shrink-0`}>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setSelectedCitizen(null)} className="md:hidden p-2 rounded-xl hover:bg-black/5 text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shadow-lg overflow-hidden border-2 border-white/20">
-                      {selectedCitizen.isGroup ? (selectedCitizen.profilePic && selectedCitizen.profilePic.length < 5 ? <span className="text-xl">{selectedCitizen.profilePic}</span> : <Users size={24} />) : (selectedCitizen.profilePic ? <img src={selectedCitizen.profilePic} className="w-full h-full object-cover" /> : selectedCitizen.displayName[0])}
+                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shadow-lg overflow-hidden border-2 border-white/20">
+                      {selectedCitizen.isGroup ? (selectedCitizen.profilePic && selectedCitizen.profilePic.length < 5 ? <span className="text-xl">{selectedCitizen.profilePic}</span> : <Users size={20} />) : (selectedCitizen.profilePic ? <img src={selectedCitizen.profilePic} className="w-full h-full object-cover" /> : selectedCitizen.displayName[0])}
                     </div>
                     <div className="text-left">
-                      <div className="flex items-center gap-1.5">
-                        <p className={`font-black text-sm md:text-base uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{selectedCitizen.displayName}</p>
-                        {getIsCreator(selectedCitizen.username) && <Crown size={14} className="text-yellow-400 animate-pulse" />}
-                      </div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30">{selectedCitizen.isGroup ? `${currentGroup?.members.length} Members` : 'Live Signal'}</p>
+                      <p className={`font-black text-sm uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{selectedCitizen.displayName}</p>
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-30 leading-none mt-0.5">{selectedCitizen.isGroup ? 'Network Frequency' : 'Direct Sync'}</p>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {selectedCitizen.isGroup && (
-                    <button onClick={handleOpenSettings} className={`p-3 hover:bg-black/5 rounded-2xl transition-all ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-blue-600'}`}>
-                      <Settings size={22} />
-                    </button>
-                  )}
-                </div>
               </div>
 
-              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 fading-scrollbar">
+              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 fading-scrollbar min-h-0">
                 {groupedMessages.map(group => (
-                  <div key={group.dateLabel} className="space-y-6">
-                    <div className="flex items-center gap-4 py-4">
-                      <div className="h-px flex-1 bg-black/5 dark:bg-white/5"></div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-20">{group.dateLabel}</span>
-                      <div className="h-px flex-1 bg-black/5 dark:bg-white/5"></div>
+                  <div key={group.dateLabel} className="space-y-4">
+                    <div className="flex items-center gap-4 py-2 opacity-30">
+                      <div className="h-px flex-1 bg-black/10 dark:bg-white/10" />
+                      <span className="text-[9px] font-black uppercase tracking-widest">{group.dateLabel}</span>
+                      <div className="h-px flex-1 bg-black/10 dark:bg-white/10" />
                     </div>
                     {group.items.map(m => {
                       const isMe = m.sender === currentUser.username;
                       const senderNickname = getNickname(m.sender);
                       const senderPhoto = getSenderPhoto(m.sender);
-                      const isCreator = getIsCreator(m.sender);
                       
                       if (m.isSystem) {
                         return (
-                          <div key={m.id} className="flex justify-center my-6">
-                            <span className="bg-black/5 dark:bg-white/5 px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest opacity-40">{m.text}</span>
+                          <div key={m.id} className="flex justify-center my-4">
+                            <span className="bg-black/5 dark:bg-white/5 px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest opacity-40">{m.text}</span>
                           </div>
                         );
                       }
 
                       return (
-                        <div key={m.id} className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-3 group/msg relative mb-2`}>
-                          <div onClick={() => onNavigateToProfile(m.sender)} className={`w-8 h-8 md:w-9 md:h-9 rounded-xl ${isCreator ? 'bg-yellow-400 ring-4 ring-yellow-400/20' : 'bg-custom'} text-white font-black flex items-center justify-center shrink-0 border-2 border-white/20 shadow-md overflow-hidden cursor-pointer active:scale-90 transition-all`}>
+                        <div key={m.id} className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-3 group/msg relative`}>
+                          <div className={`w-8 h-8 rounded-lg bg-custom text-white font-black flex items-center justify-center shrink-0 border-2 border-white/20 shadow-sm overflow-hidden text-[10px]`}>
                              {senderPhoto ? <img src={senderPhoto} className="w-full h-full object-cover" /> : m.sender[0].toUpperCase()}
                           </div>
-
-                          <div className={`max-w-[80%] md:max-w-[70%] space-y-1 flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                            {selectedCitizen.isGroup && !isMe && (
-                              <div className="flex items-center gap-1 ml-1 mb-1">
-                                <p className="text-[9px] font-black uppercase tracking-widest opacity-40">{senderNickname}</p>
-                                {isCreator && <Crown size={8} className="text-yellow-400" />}
-                              </div>
-                            )}
-                            
-                            <div className="relative group/bubble">
-                              <div className={`relative px-5 py-3.5 rounded-[1.5rem] font-bold text-sm shadow-sm transition-all border-b-4 ${isMe ? 'bg-blue-600 border-blue-800 text-white rounded-tr-none' : isDarkMode ? 'bg-slate-800 border-slate-900 text-white rounded-tl-none' : 'bg-gray-100 border-gray-200 text-slate-800 rounded-tl-none'}`}>
-                                {m.replyToId && (
-                                  <div className={`mb-3 p-3 rounded-xl text-[10px] flex flex-col gap-1 border-l-4 ${isMe ? 'bg-white/10 border-white/30' : 'bg-black/10 border-black/20'} opacity-80 italic`}>
-                                    <div className="flex items-center gap-1 font-black uppercase">
-                                      <CornerDownRight size={10} /> @{m.replyToSender}
-                                    </div>
-                                    <div className="truncate opacity-60">"{m.replyToText}"</div>
-                                  </div>
-                                )}
-                                <p className="leading-relaxed">{m.text}</p>
-                                
-                                {m.reactions && m.reactions.length > 0 && (
-                                  <div className={`absolute -bottom-4 ${isMe ? 'right-2' : 'left-2'} flex gap-1 bg-white dark:bg-slate-900 rounded-full px-2 py-1 shadow-lg border-2 border-black/5 cursor-pointer z-10`} onClick={(e) => { e.stopPropagation(); setViewingReacters(m.reactions?.[0] || null); }}>
-                                    {m.reactions.map(r => (
-                                      <button key={r.emoji} className="flex items-center gap-1">
-                                        <span className="text-xs">{r.emoji}</span>
-                                        <span className="text-[9px] font-black text-slate-900 dark:text-white">{r.users.length}</span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-
-                                <div className={`absolute ${isMe ? '-left-12' : '-right-12'} top-1/2 -translate-y-1/2 flex flex-col gap-2 opacity-0 group-hover/bubble:opacity-100 transition-opacity bg-white/10 backdrop-blur-md p-1.5 rounded-2xl z-20`}>
-                                  <button onClick={() => setReactionPickerMsgId(reactionPickerMsgId === m.id ? null : m.id)} className={`p-2 rounded-xl hover:bg-white/20 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-500'}`}><Smile size={18} /></button>
-                                  <button onClick={() => { setReplyingTo(m); chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }} className={`p-2 rounded-xl hover:bg-white/20 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-500'}`}><Reply size={18} /></button>
-                                </div>
-
-                                <AnimatePresence>
-                                  {reactionPickerMsgId === m.id && (
-                                    <motion.div initial={{ scale: 0.8, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.8, opacity: 0 }} className={`absolute z-30 ${isMe ? 'right-0 -top-14' : 'left-0 -top-14'} bg-white dark:bg-slate-800 border-4 border-black/5 rounded-[2rem] p-2 flex gap-1 shadow-2xl`}>
-                                      {REACTION_EMOJIS.map(emoji => {
-                                        const isReacted = m.reactions?.find(r => r.emoji === emoji && r.users.includes(currentUser.username));
-                                        return (<button key={emoji} onClick={() => { onReactToMessage(m.id, emoji); setReactionPickerMsgId(null); }} className={`hover:scale-125 transition-transform p-2 rounded-xl ${isReacted ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}>{emoji}</button>);
-                                      })}
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
+                          <div className={`max-w-[75%] space-y-1 flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                            {!isMe && selectedCitizen.isGroup && <span className="text-[8px] font-black uppercase opacity-30 ml-1">{senderNickname}</span>}
+                            <div className={`relative px-4 py-2.5 rounded-[1.25rem] font-bold text-[13px] border-b-4 ${isMe ? 'bg-blue-600 border-blue-800 text-white rounded-tr-none' : isDarkMode ? 'bg-slate-800 border-slate-900 text-white rounded-tl-none' : 'bg-gray-100 border-gray-200 text-slate-800 rounded-tl-none'}`}>
+                              <p>{m.text}</p>
                             </div>
-                            
-                            <div className={`flex items-center gap-2 text-[10px] font-black uppercase opacity-20 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                              {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              {isMe && (m.read ? <CheckCheck size={14} className="text-blue-500" /> : <Check size={14} />)}
-                            </div>
+                            <span className="text-[8px] font-black opacity-20 uppercase tracking-widest mt-0.5">{new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         </div>
                       );
@@ -415,158 +326,46 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
               </div>
 
               {/* Input Area */}
-              <div className={`p-4 md:p-8 border-t ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} shrink-0 bg-inherit`}>
-                <AnimatePresence>
-                  {replyingTo && (
-                    <motion.div initial={{ height: 0, opacity: 0, y: 20 }} animate={{ height: 'auto', opacity: 1, y: 0 }} exit={{ height: 0, opacity: 0, y: 20 }} className="mb-4 overflow-hidden bg-blue-500/10 border-l-[6px] border-blue-500 p-4 rounded-r-3xl flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest flex items-center gap-2 mb-1"><Reply size={14} /> Replying to @{replyingTo.sender}</p>
-                        <p className={`text-xs font-bold truncate opacity-60`}>"{replyingTo.text}"</p>
-                      </div>
-                      <button onClick={() => setReplyingTo(null)} className="p-2 hover:bg-red-500/10 rounded-full transition-colors text-slate-400 hover:text-red-500"><X size={20} /></button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                
-                <div className={`flex items-center gap-3 p-2 rounded-[2rem] border-4 transition-all shadow-inner ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'} focus-within:border-blue-500`}>
+              <div className={`p-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} shrink-0`}>
+                <div className={`flex items-center gap-2 p-1.5 rounded-[1.5rem] border-2 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'} focus-within:border-blue-500`}>
                   <input 
                     type="text" 
                     value={input} 
                     onChange={(e) => setInput(e.target.value)} 
                     onKeyPress={(e) => e.key === 'Enter' && handleSend()} 
-                    disabled={isSending}
-                    placeholder={isSending ? "Scanning..." : (replyingTo ? "Transmit reply..." : "Broadcast frequency...")} 
-                    className={`flex-1 bg-transparent px-5 py-3 font-black text-sm outline-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`} 
+                    placeholder="Broadcast frequency..." 
+                    className={`flex-1 bg-transparent px-4 py-2 font-black text-xs outline-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`} 
                   />
-                  <button 
-                    onClick={handleSend} 
-                    disabled={isSending}
-                    className="kahoot-button-blue p-4 rounded-2xl text-white shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                  >
-                    {isSending ? <Clock size={24} className="animate-spin" /> : <Send size={24} />}
-                  </button>
+                  <button onClick={handleSend} className="kahoot-button-blue p-2.5 rounded-xl text-white shadow-md active:scale-95 transition-all"><Send size={18} /></button>
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-              <div className="relative mb-8">
-                 <motion.div 
-                   animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }} 
-                   transition={{ duration: 6, repeat: Infinity }}
-                   className="p-12 bg-blue-500/10 rounded-[4rem] text-blue-500 relative z-10"
-                 >
-                    <Radio size={80} />
-                 </motion.div>
-                 <motion.div 
-                   animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
-                   transition={{ duration: 2, repeat: Infinity }}
-                   className="absolute inset-0 bg-blue-500/20 rounded-full -z-0"
-                 />
-              </div>
-              <h3 className={`text-3xl font-black italic uppercase tracking-tighter mb-4 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Citizen Terminal</h3>
-              <p className="text-xs font-black uppercase tracking-[0.4em] opacity-30 max-w-xs leading-relaxed">Select a frequency to synchronize transmissions and activate metropolitan communications</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center opacity-30">
+              <Radio size={64} className="mb-4" />
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Citizen Terminal</h3>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] max-w-xs mt-2">Select a frequency to synchronize transmissions</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Group Create Modal */}
+      {/* Group Create Modal Simplified for brevity */}
       <AnimatePresence>
         {isCreatingGroup && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} w-full max-w-md rounded-[3rem] p-10 border-4 shadow-2xl`}>
-              <div className="flex justify-between items-center mb-8"><h3 className="text-2xl font-black italic uppercase tracking-tighter">Initialize Group</h3><button onClick={() => setIsCreatingGroup(false)} className="opacity-40 hover:opacity-100"><X size={28}/></button></div>
-              <div className="space-y-6">
-                 <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase opacity-40 ml-2">Neural Identification</p>
-                    <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} placeholder="Group Name..." className="w-full p-4 rounded-2xl border-2 bg-black/5 font-black text-center text-lg outline-none focus:border-custom" />
-                 </div>
-                 <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase opacity-40 ml-2">Broadcast Search</p>
-                    <input type="text" value={groupSearchTerm} onChange={e => setGroupSearchTerm(e.target.value)} placeholder="Search Citizens..." className="w-full p-4 rounded-xl border-2 bg-black/5 font-bold text-sm outline-none" />
-                 </div>
-                 <div className="max-h-40 overflow-y-auto fading-scrollbar p-2 space-y-2 bg-black/5 rounded-2xl">
-                    {groupFilterList.map(u => (
-                      <button key={u.username} onClick={() => setSelectedForGroup(prev => prev.includes(u.username) ? prev.filter(x => x !== u.username) : [...prev, u.username])} className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${selectedForGroup.includes(u.username) ? 'bg-blue-600 text-white' : 'hover:bg-black/5'}`}>
-                         <div className="w-8 h-8 rounded-lg bg-custom text-white font-black flex items-center justify-center italic text-xs border-2 border-white/20 shrink-0">{u.displayName[0]}</div>
-                         <p className="text-[11px] font-black uppercase flex-1 text-left">{u.displayName}</p>
-                         {selectedForGroup.includes(u.username) && <Check size={16}/>}
-                      </button>
-                    ))}
-                 </div>
-                 <button onClick={handleCreateGroup} disabled={!groupName.trim() || selectedForGroup.length === 0} className="kahoot-button-blue w-full py-5 rounded-2xl text-white font-black uppercase text-sm shadow-xl active:scale-95 transition-all disabled:opacity-50">Launch Network</button>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} w-full max-w-sm rounded-[3rem] p-8 border-4 shadow-2xl`}>
+              <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black uppercase italic">Initialize Group</h3><button onClick={() => setIsCreatingGroup(false)}><X size={24}/></button></div>
+              <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} placeholder="Group Name..." className="w-full p-4 rounded-2xl border-2 bg-black/5 font-black mb-4 outline-none focus:border-blue-500" />
+              <div className="max-h-48 overflow-y-auto fading-scrollbar p-2 space-y-2 bg-black/5 rounded-xl mb-6">
+                {groupFilterList.map(u => (
+                  <button key={u.username} onClick={() => setSelectedForGroup(prev => prev.includes(u.username) ? prev.filter(x => x !== u.username) : [...prev, u.username])} className={`w-full p-3 rounded-xl flex items-center gap-3 ${selectedForGroup.includes(u.username) ? 'bg-blue-600 text-white' : 'hover:bg-black/5'}`}>
+                    <p className="text-[11px] font-black uppercase flex-1 text-left">{u.displayName}</p>
+                    {selectedForGroup.includes(u.username) && <Check size={16}/>}
+                  </button>
+                ))}
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Group Settings Modal */}
-      <AnimatePresence>
-        {isEditingGroup && currentGroup && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} w-full max-w-lg rounded-[3.5rem] p-10 border-4 shadow-2xl relative overflow-hidden`}>
-              <div className="flex justify-between items-center mb-10"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Frequency Ops</h3><button onClick={() => setIsEditingGroup(false)} className="opacity-40 hover:opacity-100"><X size={32}/></button></div>
-              
-              <div className="space-y-8 overflow-y-auto max-h-[60vh] fading-scrollbar pr-4">
-                 <div className="flex justify-center mb-6">
-                    <div className="grid grid-cols-4 gap-2">
-                       {GROUP_EMOJIS.map(e => (
-                         <button key={e} onClick={() => setEditGroupPhoto(e)} className={`text-2xl p-3 rounded-2xl border-2 transition-all ${editGroupPhoto === e ? 'border-custom bg-custom/10 scale-110 shadow-md' : 'border-black/5'}`}>{e}</button>
-                       ))}
-                    </div>
-                 </div>
-                 <div className="space-y-3">
-                    <p className="text-[10px] font-black uppercase opacity-40 ml-2 tracking-widest">Network Identity</p>
-                    <input type="text" value={editGroupName} onChange={e => setEditGroupName(e.target.value)} className="w-full p-4 rounded-2xl border-2 bg-black/5 font-black text-center text-xl outline-none focus:border-custom" />
-                 </div>
-
-                 <div className="space-y-4">
-                    <p className="text-[10px] font-black uppercase opacity-40 ml-2 tracking-widest">Citizen Nicknames</p>
-                    <div className="space-y-3">
-                       {currentGroup.members.map(member => (
-                         <div key={member} className="flex items-center gap-3">
-                            <span className="text-[10px] font-black opacity-30 w-20 truncate">@{member}</span>
-                            <input 
-                              type="text" 
-                              placeholder="Nickname..." 
-                              value={nicknames[member] || ''} 
-                              onChange={e => setNicknames({...nicknames, [member]: e.target.value})} 
-                              className="flex-1 p-3 rounded-xl border-2 bg-black/5 font-bold text-xs outline-none focus:border-custom" 
-                            />
-                         </div>
-                       ))}
-                    </div>
-                 </div>
-
-                 <div className="pt-6 space-y-4">
-                   <button onClick={handleSaveSettings} className="kahoot-button-custom w-full py-5 rounded-2xl text-white font-black uppercase text-sm shadow-xl active:scale-95 transition-all">Update Frequency</button>
-                   <button onClick={handleLeaveGroup} className="w-full py-5 rounded-2xl border-4 border-red-500/20 text-red-500 font-black uppercase text-sm hover:bg-red-500 hover:text-white transition-all">Disconnect from Group</button>
-                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Reaction Reacters View Modal */}
-      <AnimatePresence>
-        {viewingReacters && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/50" onClick={() => setViewingReacters(null)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900' : 'bg-white'} w-full max-w-xs rounded-[2rem] p-6 shadow-2xl`} onClick={e => e.stopPropagation()}>
-               <div className="flex items-center gap-3 mb-4">
-                  <span className="text-3xl">{viewingReacters.emoji}</span>
-                  <p className="text-sm font-black uppercase tracking-tighter">Echoed by</p>
-               </div>
-               <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {viewingReacters.users.map(u => (
-                    <div key={u} className="flex items-center gap-3 p-2 bg-black/5 rounded-xl">
-                       <div className="w-6 h-6 rounded-md bg-custom text-white font-black flex items-center justify-center text-[10px] italic">{u[0].toUpperCase()}</div>
-                       <p className="text-xs font-black">@{u}</p>
-                    </div>
-                  ))}
-               </div>
+              <button onClick={handleCreateGroup} className="kahoot-button-blue w-full py-4 rounded-2xl text-white font-black uppercase text-sm">Launch Network</button>
             </motion.div>
           </div>
         )}

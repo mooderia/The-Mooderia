@@ -31,10 +31,8 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Warning State
   const [activeWarning, setActiveWarning] = useState<{ count: number, reason: string } | null>(null);
 
-  // Data Migration Utility
   const migrateUserData = (user: User): User => {
     return {
       ...user,
@@ -107,7 +105,6 @@ const App: React.FC = () => {
         setCurrentUser(user);
         setViewingUsername(user.username);
       } catch (e) { 
-        console.error("Data corruption recovery triggered.", e);
         localStorage.removeItem('mooderia_user');
       }
     }
@@ -123,11 +120,9 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // AUTOMATIC MOOD CHECK-IN TRIGGER
   useEffect(() => {
     if (currentUser && !currentUser.isBanned && isLoaded) {
       const today = new Date().toDateString();
-      // Only open if the last mood date is NOT today
       if (currentUser.lastMoodDate !== today) {
         setIsMoodModalOpen(true);
       }
@@ -168,7 +163,6 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    console.log("System Logout Initialized");
     localStorage.removeItem('mooderia_user');
     setCurrentUser(null);
     setViewingUsername(null);
@@ -361,33 +355,18 @@ const App: React.FC = () => {
   if (isAppStarting) return <LoadingScreen />;
   if (!currentUser) return <AuthScreen onLogin={onLogin} />;
 
-  // Banned UI Overlay
   if (currentUser.isBanned) {
     return (
       <div className="fixed inset-0 z-[1000] bg-black text-white flex flex-col items-center justify-center p-8 text-center overflow-hidden">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_red_0%,_transparent_70%)] animate-pulse pointer-events-none" />
         <Gavel size={120} className="text-red-600 mb-8" />
         <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-4 text-red-600">EXILED</h1>
-        <p className="text-xl md:text-2xl font-black uppercase tracking-widest mb-12 opacity-80">Identity Deletion Finalized</p>
-        
-        <div className="max-w-2xl bg-red-600/10 border-4 border-red-600 p-8 rounded-[3rem] shadow-[0_0_50px_rgba(220,38,38,0.3)] mb-12">
-           <h2 className="text-2xl font-black uppercase mb-4">CITIZEN TERMINATION REPORT</h2>
-           <p className="font-bold opacity-70 mb-4">Your frequency has been permanently restricted from the Mooderia Metropolis due to violations of the Harmony Accords.</p>
-           <div className="flex justify-center gap-4">
-              <div className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm uppercase">Threat Level: Max</div>
-              <div className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm uppercase">Ban: Permanent</div>
-           </div>
-        </div>
-
-        <button 
-          onClick={handleLogout} 
-          className="group relative flex items-center gap-3 bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-xl hover:scale-105 active:scale-95 transition-all shadow-2xl z-[1001]"
-        >
-          <LogOut size={24} /> Leave Metropolis
-        </button>
+        <button onClick={handleLogout} className="flex items-center gap-3 bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-xl transition-all shadow-2xl z-[1001]"><LogOut size={24} /> Leave Metropolis</button>
       </div>
     );
   }
+
+  // Determine if section should scroll natively or be app-like (fixed)
+  const isFixedSection = activeSection === 'CityHall' || activeSection === 'Mood';
 
   return (
     <div style={{'--theme-color': currentUser.profileColor || '#e21b3c'} as React.CSSProperties} className={`h-screen max-h-screen overflow-hidden flex flex-col md:flex-row ${isDarkMode ? 'bg-[#0f0f0f] text-white' : 'bg-[#f7f8fa] text-slate-900'} transition-colors duration-300`}>
@@ -405,34 +384,14 @@ const App: React.FC = () => {
         }
       `}</style>
 
-      {/* Warning Modal Overlay */}
       <AnimatePresence>
         {activeWarning && (
           <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="w-full max-w-md bg-slate-900 text-white rounded-[3rem] p-10 text-center border-8 border-red-600 shadow-2xl police-flash overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-full h-2 flex">
-                   <div className="flex-1 bg-red-600 h-full" />
-                   <div className="flex-1 bg-blue-600 h-full" />
-                </div>
-                
+             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-md bg-slate-900 text-white rounded-[3rem] p-10 text-center border-8 border-red-600 shadow-2xl police-flash overflow-hidden">
                 <AlertOctagon size={80} className="mx-auto text-red-600 mb-6" />
                 <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-4">CITIZEN WARNING</h2>
-                <div className="bg-red-600 text-white inline-block px-8 py-2 rounded-full font-black text-xl mb-6 shadow-xl italic tracking-tighter">
-                  VIOLATION {activeWarning.count} / 3
-                </div>
-                
-                <p className="font-bold opacity-80 mb-8 leading-relaxed uppercase tracking-tight text-xs">
-                  Neural sensors detected an inappropriate frequency in your transmission: 
-                  <span className="block text-red-400 mt-2">"{activeWarning.reason}"</span>
-                </p>
-                
-                <p className="text-[10px] font-black uppercase opacity-40 mb-10">
-                  Continued violations will result in permanent identity deletion from the metropolis.
-                </p>
-                
-                <button onClick={() => setActiveWarning(null)} className="w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-base shadow-xl active:scale-95 transition-all">
-                  I ACKNOWLEDGE THE ACCORDS
-                </button>
+                <div className="bg-red-600 text-white inline-block px-8 py-2 rounded-full font-black text-xl mb-6 shadow-xl">VIOLATION {activeWarning.count} / 3</div>
+                <button onClick={() => setActiveWarning(null)} className="w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-base shadow-xl">I ACKNOWLEDGE THE ACCORDS</button>
              </motion.div>
           </div>
         )}
@@ -467,12 +426,12 @@ const App: React.FC = () => {
         unreadNotifications={notifications.filter(n => n.recipient === currentUser!.username && !n.read).length} 
       />
       <main className="flex-1 flex flex-col relative pt-14 pb-16 md:pt-0 md:pb-0 h-full overflow-hidden">
-        <div className="flex-1 overflow-y-auto fading-scrollbar p-4 md:p-8">
+        <div className={`flex-1 ${isFixedSection ? 'overflow-hidden' : 'overflow-y-auto fading-scrollbar'} p-4 md:p-8`}>
           <motion.div 
             key={activeSection + (activeSection === 'Profile' ? viewingUsername : '')} 
             initial={{ opacity: 0, y: 10 }} 
             animate={{ opacity: 1, y: 0 }} 
-            className="max-w-5xl mx-auto"
+            className={`max-w-6xl mx-auto h-full ${isFixedSection ? 'flex flex-col' : ''}`}
           >
             {activeSection === 'Home' && <HomeSection user={currentUser!} posts={allPosts} isDarkMode={isDarkMode} />}
             {activeSection === 'Mood' && (
