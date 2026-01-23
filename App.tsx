@@ -31,7 +31,6 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Computed value to get the currently viewed profile
   const profileToView = useMemo(() => {
     if (!viewingUsername) return null;
     if (currentUser && viewingUsername === currentUser.username) return currentUser;
@@ -39,10 +38,8 @@ const App: React.FC = () => {
     return allUsers.find(u => u.username === viewingUsername) || null;
   }, [viewingUsername, currentUser, globalUpdateToggle, allPosts]);
 
-  // Unified Notification system
   const addNotification = useCallback((recipient: string, type: Notification['type'], snippet: string, postId: string = '') => {
     if (!currentUser) return;
-    // Don't notify self for basic social interactions, but allow achievements
     if (recipient === currentUser.username && type !== 'achievement' && type !== 'tier') return;
     
     const newNotif: Notification = {
@@ -58,7 +55,6 @@ const App: React.FC = () => {
     setNotifications(prev => [...prev, newNotif]);
   }, [currentUser]);
 
-  // Initial Data Restoration
   useEffect(() => {
     const savedUser = localStorage.getItem('mooderia_user');
     const savedPosts = localStorage.getItem('mooderia_posts') || '[]';
@@ -68,30 +64,24 @@ const App: React.FC = () => {
     const savedTheme = localStorage.getItem('mooderia_theme');
     
     if (savedUser) {
-      const user: User = JSON.parse(savedUser);
-      const now = Date.now();
-
-      // Creator Protection Patch
-      if (user.email === 'travismiguel014@gmail.com') {
-        user.title = 'Creator';
-      }
-      
-      // Pet survival logic based on time elapsed since last seen
-      const lastUpdate = user.petLastUpdate || now;
-      const elapsedMinutes = Math.floor((now - lastUpdate) / 60000);
-      
-      if (elapsedMinutes > 0) {
-        user.petHunger = Math.max(0, user.petHunger - elapsedMinutes * 0.15);
-        user.petThirst = Math.max(0, user.petThirst - elapsedMinutes * 0.2);
-        
-        // If the pet isn't in stasis (sleeping), it loses rest
-        if (!user.petSleepUntil || user.petSleepUntil < now) {
-          user.petRest = Math.max(0, user.petRest - elapsedMinutes * 0.1);
-          user.petSleepUntil = null;
+      try {
+        const user: User = JSON.parse(savedUser);
+        const now = Date.now();
+        if (user.email === 'travismiguel014@gmail.com') user.title = 'Creator';
+        const lastUpdate = user.petLastUpdate || now;
+        const elapsedMinutes = Math.floor((now - lastUpdate) / 60000);
+        if (elapsedMinutes > 0) {
+          user.petHunger = Math.max(0, user.petHunger - elapsedMinutes * 0.15);
+          user.petThirst = Math.max(0, user.petThirst - elapsedMinutes * 0.2);
+          if (!user.petSleepUntil || user.petSleepUntil < now) {
+            user.petRest = Math.max(0, user.petRest - elapsedMinutes * 0.1);
+            user.petSleepUntil = null;
+          }
+          user.petLastUpdate = now;
         }
-        user.petLastUpdate = now;
-      }
-      setCurrentUser(user);
+        setCurrentUser(user);
+        setViewingUsername(user.username);
+      } catch (e) { console.error("Data corruption recovery triggered."); }
     }
 
     setAllPosts(JSON.parse(savedPosts));
@@ -105,7 +95,6 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Mood Modal Trigger logic
   useEffect(() => {
     if (!isAppStarting && currentUser) {
       const todayStr = new Date().toDateString();
@@ -115,29 +104,21 @@ const App: React.FC = () => {
     }
   }, [isAppStarting, currentUser?.username, currentUser?.lastMoodDate]);
 
-  // MASTER SYNC ENGINE: Persists ALL application state to LocalStorage
   useEffect(() => {
     if (!isLoaded) return;
-    
     if (currentUser) {
       localStorage.setItem('mooderia_user', JSON.stringify(currentUser));
-      
       const allUsers: User[] = JSON.parse(localStorage.getItem('mooderia_all_users') || '[]');
       const idx = allUsers.findIndex(u => u.username === currentUser.username);
-      if (idx > -1) {
-        allUsers[idx] = currentUser;
-      } else {
-        allUsers.push(currentUser);
-      }
+      if (idx > -1) { allUsers[idx] = currentUser; } 
+      else { allUsers.push(currentUser); }
       localStorage.setItem('mooderia_all_users', JSON.stringify(allUsers));
     }
-    
     localStorage.setItem('mooderia_posts', JSON.stringify(allPosts));
     localStorage.setItem('mooderia_messages', JSON.stringify(allMessages));
     localStorage.setItem('mooderia_groups', JSON.stringify(allGroups));
     localStorage.setItem('mooderia_notifications', JSON.stringify(notifications));
     localStorage.setItem('mooderia_theme', isDarkMode ? 'dark' : 'light');
-    
     setGlobalUpdateToggle(t => t + 1);
   }, [currentUser, allPosts, allMessages, allGroups, notifications, isDarkMode, isLoaded]);
 
@@ -147,9 +128,7 @@ const App: React.FC = () => {
     const updatedFollowing = isFollowing 
       ? currentUser.following.filter(u => u !== targetUsername) 
       : [...currentUser.following, targetUsername];
-      
     setCurrentUser({ ...currentUser, following: updatedFollowing });
-    
     const allUsers: User[] = JSON.parse(localStorage.getItem('mooderia_all_users') || '[]');
     const targetIdx = allUsers.findIndex(u => u.username === targetUsername);
     if (targetIdx > -1) {
@@ -230,7 +209,6 @@ const App: React.FC = () => {
     const updatedFollowing = currentUser.following.filter(u => u !== targetUsername);
     const updatedBlocked = [...currentUser.blockedUsers, targetUsername];
     setCurrentUser({ ...currentUser, following: updatedFollowing, blockedUsers: updatedBlocked });
-    
     const allUsers: User[] = JSON.parse(localStorage.getItem('mooderia_all_users') || '[]');
     const targetIdx = allUsers.findIndex(u => u.username === targetUsername);
     if (targetIdx > -1) {
@@ -238,10 +216,8 @@ const App: React.FC = () => {
       targetUser.followers = targetUser.followers.filter(u => u !== currentUser.username);
       targetUser.following = targetUser.following.filter(u => u !== currentUser.username);
       allUsers[targetIdx] = targetUser;
-      
       const currentIdxGlobal = allUsers.findIndex(u => u.username === currentUser.username);
       if (currentIdxGlobal > -1) allUsers[currentIdxGlobal].followers = allUsers[currentIdxGlobal].followers.filter(u => u !== targetUsername);
-      
       localStorage.setItem('mooderia_all_users', JSON.stringify(allUsers));
     }
     setViewingUsername(currentUser.username);
@@ -253,15 +229,12 @@ const App: React.FC = () => {
     let newLevel = currentUser.petLevel;
     let newExp = currentUser.petExp + exp;
     let leveledUp = false;
-    
     while (newExp >= getExpNeeded(newLevel)) { 
       newExp -= getExpNeeded(newLevel); 
       newLevel += 1; 
       leveledUp = true; 
     }
-    
     if (leveledUp) addNotification(currentUser.username, 'achievement', `Your Guardian ${newName || currentUser.petName} reached Rank ${newLevel}!`);
-    
     setCurrentUser({
       ...currentUser,
       petName: newName || currentUser.petName,
