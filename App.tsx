@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mood, Section, Post, Comment, Message, Notification, MessageReaction, Group } from './types';
+import { User, Mood, Section, Post, Comment, Message, Notification, Group } from './types';
 import Sidebar from './components/Sidebar';
-import MoodCheckIn from './components/MoodCheckIn';
 import HomeSection from './sections/HomeSection';
 import MoodSection from './sections/MoodSection';
 import ZodiacSection from './sections/ZodiacSection';
@@ -12,15 +11,14 @@ import SettingsSection from './sections/SettingsSection';
 import NotificationsSection from './sections/NotificationsSection';
 import AuthScreen from './sections/AuthScreen';
 import LoadingScreen from './components/LoadingScreen';
-import { getExpNeeded, MOOD_SCORES } from './constants';
-import { Trophy, Share2, X, ShieldAlert, AlertOctagon, LogOut, Gavel } from 'lucide-react';
+import { getExpNeeded } from './constants';
+import { LogOut, Gavel, ShieldAlert } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [activeSection, setActiveSection] = useState<Section>('Home');
   const [viewingUsername, setViewingUsername] = useState<string | null>(null);
-  const [isMoodModalOpen, setIsMoodModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false); 
   const [isAppStarting, setIsAppStarting] = useState(true);
   
@@ -157,7 +155,6 @@ const App: React.FC = () => {
     if (!currentUser || currentUser.username === targetUsername) return;
     const isFollowing = currentUser.following.includes(targetUsername);
     
-    // Immediate state update for master list
     setAllUsers(prev => prev.map(u => {
       if (u.username === currentUser.username) {
         const nextFollowing = isFollowing 
@@ -174,7 +171,6 @@ const App: React.FC = () => {
       return u;
     }));
 
-    // Update currentUser local state
     const nextFollowing = isFollowing 
       ? currentUser.following.filter(f => f !== targetUsername)
       : [...currentUser.following, targetUsername];
@@ -251,7 +247,6 @@ const App: React.FC = () => {
           const userIdx = reaction.users.indexOf(currentUser.username);
           
           if (userIdx > -1) {
-            // Unreact (Same emoji clicked twice)
             const newUsers = reaction.users.filter(u => u !== currentUser.username);
             if (newUsers.length === 0) {
               reactions.splice(reactionIdx, 1);
@@ -259,11 +254,9 @@ const App: React.FC = () => {
               reactions[reactionIdx] = { ...reaction, users: newUsers };
             }
           } else {
-            // Add user to existing reaction emoji
             reactions[reactionIdx] = { ...reaction, users: [...reaction.users, currentUser.username] };
           }
         } else {
-          // Add brand new emoji reaction
           reactions.push({ emoji, users: [currentUser.username] });
         }
         return { ...m, reactions };
@@ -482,7 +475,18 @@ const App: React.FC = () => {
             )}
             {activeSection === 'Notifications' && <NotificationsSection notifications={notifications.filter(n => n.recipient === currentUser!.username)} isDarkMode={isDarkMode} onMarkRead={() => setNotifications(notifications.map(n => n.recipient === currentUser!.username ? {...n, read: true} : n))} />}
             {activeSection === 'Profile' && profileToView && <ProfileSection user={profileToView} allPosts={allPosts} isDarkMode={isDarkMode} currentUser={currentUser!} onEditProfile={(dn, un, pp, ti, bp, pc, bi) => { setCurrentUser({...currentUser!, displayName: dn, username: un, profilePic: pp, title: ti, profileColor: pc, bio: bi}); setViewingUsername(un); }} onBlock={handleBlock} onFollow={handleFollow} />}
-            {activeSection === 'Settings' && <SettingsSection isDarkMode={isDarkMode} onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} onLogout={handleLogout} user={currentUser!} onUnblock={(u) => { const newBlocked = currentUser!.blockedUsers.filter(b => b !== u); setCurrentUser({...currentUser!, blockedUsers: newBlocked}); }} />}
+            {activeSection === 'Settings' && (
+              <SettingsSection 
+                isDarkMode={isDarkMode} 
+                onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} 
+                onLogout={handleLogout} 
+                user={currentUser!} 
+                onUnblock={(u) => { 
+                  const newBlocked = currentUser!.blockedUsers.filter(b => b !== u); 
+                  setCurrentUser({...currentUser!, blockedUsers: newBlocked}); 
+                }} 
+              />
+            )}
           </motion.div>
         </div>
       </main>
