@@ -4,9 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 const getApiKey = (): string => {
   const k =
     (import.meta as any).env?.VITE_GEMINI_API_KEY ||
-    (import.meta as any).env?.GEMINI_API_KEY ||
-    (process.env as any)?.GEMINI_API_KEY ||
-    (process.env as any)?.API_KEY;
+    (typeof __GEMINI_KEY__ !== 'undefined' ? __GEMINI_KEY__ : '');
   if (!k) {
     throw new Error("Gemini API key missing. Set VITE_GEMINI_API_KEY in environment.");
   }
