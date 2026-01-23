@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Users, Search, MessageSquare, ArrowLeft, ShieldCheck, Check, CheckCheck, Clock, Smile, Plus, X, Reply, CornerDownRight, Settings, Camera, LogOut, Globe, Crown, Zap, ExternalLink, Radio } from 'lucide-react';
+import { Send, Users, Search, MessageSquare, ArrowLeft, ShieldCheck, Check, CheckCheck, Clock, Smile, Plus, X, Reply, Radio } from 'lucide-react';
 import { User, Message, MessageReaction, Group } from '../types';
 import { checkContentSafety } from '../services/geminiService';
 
@@ -23,7 +23,6 @@ const REACTION_EMOJIS = ['❤️', '😂', '😮', '😢', '🔥', '👍'];
 const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUser, messages, groups, onSendMessage, onReadMessages, onGroupUpdate, onGroupCreate, onNavigateToProfile, onReactToMessage, onViolation }) => {
   const [input, setInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [groupSearchTerm, setGroupSearchTerm] = useState('');
   const [selectedCitizen, setSelectedCitizen] = useState<{ username: string, displayName: string, profilePic?: string, isGroup?: boolean, recipients?: string[] } | null>(null);
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
   const [viewingReacters, setViewingReacters] = useState<MessageReaction | null>(null);
@@ -34,7 +33,6 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
   const [selectedForGroup, setSelectedForGroup] = useState<string[]>([]);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const allUsers: User[] = useMemo(() => JSON.parse(localStorage.getItem('mooderia_all_users') || '[]'), [isCreatingGroup]);
 
@@ -128,10 +126,15 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
       photo: '🚀'
     };
     onGroupCreate(newGroup);
-    onSendMessage(groupId, `CITIZEN TERMINAL: Neural Group "${groupName}" initialized.`, { isGroup: true, recipients: members, groupName, isSystem: true });
+    onSendMessage(groupId, `CITIZEN TERMINAL: Group initialized.`, { isGroup: true, recipients: members, groupName, isSystem: true });
     setSelectedCitizen({ username: groupId, displayName: groupName, isGroup: true, recipients: members, profilePic: '🚀' });
     setIsCreatingGroup(false);
   };
+
+  const filteredChats = chats.filter(c => 
+    c.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    c.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0 w-full relative">
@@ -142,16 +145,17 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row rounded-[3rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-2xl overflow-hidden border-4 border-black/5 relative min-h-0">
-        <div className={`w-full md:w-64 lg:w-80 border-r ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} flex flex-col ${selectedCitizen ? 'hidden md:flex' : 'flex'} min-h-0`}>
+      <div className={`flex-1 flex flex-col md:flex-row rounded-[3rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-2xl overflow-hidden border-4 border-black/5 relative min-h-0 h-full`}>
+        {/* Citizen List / Sidebar */}
+        <div className={`w-full md:w-64 lg:w-80 border-r ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} flex flex-col ${selectedCitizen ? 'hidden md:flex' : 'flex'} min-h-0 h-full`}>
           <div className="p-4 border-b border-gray-100 dark:border-slate-800 shrink-0">
             <div className="relative">
-              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search citizens..." className={`w-full pl-10 pr-4 py-3 rounded-2xl text-[12px] font-black border-2 outline-none focus:border-blue-500 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-200 text-slate-900'}`} />
-              <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`} size={16} />
+              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search..." className={`w-full pl-10 pr-4 py-3 rounded-2xl text-[12px] font-black border-2 outline-none focus:border-blue-500 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-200 text-slate-900'}`} />
+              <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 opacity-30`} size={16} />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto fading-scrollbar p-3 space-y-2">
-            {chats.map(u => (
+          <div className="flex-1 overflow-y-auto fading-scrollbar p-3 space-y-2 min-h-0">
+            {filteredChats.map(u => (
               <button key={u.username} onClick={() => setSelectedCitizen(u)} className={`w-full p-4 rounded-[1.5rem] flex items-center gap-3 transition-all border-b-4 active:translate-y-0.5 active:border-b-2 ${selectedCitizen?.username === u.username ? 'bg-blue-600 border-blue-800 text-white shadow-md' : 'hover:bg-black/5'}`}>
                 <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-slate-700 flex items-center justify-center font-black overflow-hidden shadow-sm shrink-0">
                   {u.profilePic ? <img src={u.profilePic} className="w-full h-full object-cover" /> : u.displayName[0]}
@@ -165,10 +169,11 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
           </div>
         </div>
 
-        <div className={`flex-1 flex flex-col min-h-0 ${!selectedCitizen ? 'hidden md:flex' : 'flex'}`}>
+        {/* Message Window Area */}
+        <div className={`flex-1 flex flex-col min-h-0 h-full ${!selectedCitizen ? 'hidden md:flex' : 'flex'}`}>
           {selectedCitizen ? (
             <>
-              <div className={`p-4 border-b ${isDarkMode ? 'bg-slate-800/50 border-slate-800' : 'bg-gray-50/50 border-gray-100'} flex items-center justify-between`}>
+              <div className={`p-4 border-b ${isDarkMode ? 'bg-slate-800/50 border-slate-800' : 'bg-gray-50/50 border-gray-100'} flex items-center justify-between shrink-0`}>
                 <div className="flex items-center gap-4">
                   <button onClick={() => setSelectedCitizen(null)} className="md:hidden p-2"><ArrowLeft size={20} /></button>
                   <button onClick={() => !selectedCitizen.isGroup && onNavigateToProfile(selectedCitizen.username)} className="flex items-center gap-3">
@@ -183,8 +188,9 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 fading-scrollbar">
-                {chatMessages.map(m => {
+              {/* Message List - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 fading-scrollbar min-h-0 h-full bg-slate-50/30 dark:bg-slate-900/10">
+                {chatMessages.length > 0 ? chatMessages.map(m => {
                   const isMe = m.sender === currentUser.username;
                   return (
                     <div key={m.id} className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-3 group/msg relative`}>
@@ -194,27 +200,29 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
                       <div className={`max-w-[80%] flex flex-col ${isMe ? 'items-end' : 'items-start'} gap-1`}>
                         {m.replyToId && (
                           <div className={`mb-1 p-2 rounded-xl text-[10px] italic border-l-4 opacity-60 ${isDarkMode ? 'bg-white/5 border-white/20' : 'bg-black/5 border-black/20'}`}>
-                            <p className="font-black">Echoing @{m.replyToSender}:</p>
-                            <p className="truncate">"{m.replyToText}"</p>
+                            <p className="font-black truncate max-w-[150px]">Echo: @{m.replyToSender}</p>
+                            <p className="truncate max-w-[200px]">"{m.replyToText}"</p>
                           </div>
                         )}
-                        <div className="relative group/bubble">
-                          <div className={`px-5 py-3 rounded-[1.5rem] font-bold text-sm border-b-4 ${isMe ? 'bg-blue-600 border-blue-800 text-white rounded-tr-none' : isDarkMode ? 'bg-slate-800 border-slate-900 text-white rounded-tl-none' : 'bg-gray-100 border-gray-200 text-slate-800 rounded-tl-none'}`}>
-                            <p>{m.text}</p>
+                        <div className="relative group/bubble flex items-center gap-2">
+                          <div className={`px-5 py-3 rounded-[1.5rem] font-bold text-sm border-b-4 ${isMe ? 'bg-blue-600 border-blue-800 text-white rounded-tr-none' : isDarkMode ? 'bg-slate-800 border-slate-900 text-white rounded-tl-none' : 'bg-white border-gray-200 text-slate-800 rounded-tl-none'}`}>
+                            <p className="break-words max-w-[250px] md:max-w-md">{m.text}</p>
                           </div>
-                          
-                          {/* Tool Bar Hidden by Default */}
-                          <div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover/bubble:opacity-100 transition-all flex items-center gap-1`}>
-                            <button onClick={() => setReplyingTo(m)} className="p-2 bg-black/5 rounded-full hover:bg-black/10 transition-all text-blue-500"><Reply size={14}/></button>
-                            <button onClick={() => setReactionPickerMsgId(reactionPickerMsgId === m.id ? null : m.id)} className="p-2 bg-black/5 rounded-full hover:bg-black/10 transition-all text-yellow-500"><Smile size={14}/></button>
+                          <div className={`flex flex-col gap-1 opacity-0 group-hover/bubble:opacity-100 transition-all`}>
+                            <button onClick={() => setReplyingTo(m)} className="p-1.5 bg-black/5 rounded-lg hover:bg-black/10 text-blue-500"><Reply size={14}/></button>
+                            <button onClick={() => setReactionPickerMsgId(reactionPickerMsgId === m.id ? null : m.id)} className="p-1.5 bg-black/5 rounded-lg hover:bg-black/10 text-yellow-500"><Smile size={14}/></button>
                           </div>
                         </div>
 
-                        {/* Reactions List */}
                         {m.reactions && m.reactions.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {m.reactions.map(r => (
-                              <button key={r.emoji} onClick={() => onReactToMessage(m.id, r.emoji)} onContextMenu={(e) => { e.preventDefault(); setViewingReacters(r); }} className={`px-2 py-0.5 rounded-full text-[10px] font-black border-2 transition-all flex items-center gap-1 ${r.users.includes(currentUser.username) ? 'bg-custom/10 border-custom' : isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100'}`}>
+                              <button 
+                                key={r.emoji} 
+                                onClick={() => onReactToMessage(m.id, r.emoji)} 
+                                onContextMenu={(e) => { e.preventDefault(); setViewingReacters(r); }} 
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-black border-2 transition-all flex items-center gap-1 ${r.users.includes(currentUser.username) ? 'bg-custom/10 border-custom' : isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100'}`}
+                              >
                                 <span>{r.emoji}</span>
                                 <span>{r.users.length}</span>
                               </button>
@@ -223,7 +231,6 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
                         )}
                       </div>
 
-                      {/* Reaction Picker Overlay */}
                       <AnimatePresence>
                         {reactionPickerMsgId === m.id && (
                           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className={`absolute z-20 bottom-full mb-2 p-2 rounded-2xl flex gap-2 shadow-2xl border-4 ${isDarkMode ? 'bg-slate-800 border-white/10' : 'bg-white border-black/10'}`}>
@@ -235,38 +242,44 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
                       </AnimatePresence>
                     </div>
                   );
-                })}
+                }) : (
+                  <div className="h-full flex flex-col items-center justify-center opacity-10 py-10">
+                    <MessageSquare size={80} />
+                    <p className="font-black uppercase italic text-xl mt-4">Begin Connection</p>
+                  </div>
+                )}
                 <div ref={chatEndRef} />
               </div>
 
-              {/* Reply Preview Bar */}
-              <AnimatePresence>
-                {replyingTo && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className={`px-8 py-3 border-t flex items-center justify-between ${isDarkMode ? 'bg-slate-800/50' : 'bg-blue-50'}`}>
-                    <div className="flex items-center gap-3">
-                      <Reply size={16} className="text-blue-500" />
-                      <div className="text-[10px] leading-tight">
-                        <p className="font-black uppercase tracking-widest text-blue-500">Replying to @{replyingTo.sender}</p>
-                        <p className="opacity-60 truncate max-w-md">"{replyingTo.text}"</p>
+              {/* Footer Input Area */}
+              <div className="shrink-0 border-t border-gray-100 dark:border-slate-800">
+                <AnimatePresence>
+                  {replyingTo && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className={`px-6 py-2 flex items-center justify-between ${isDarkMode ? 'bg-slate-800/80' : 'bg-blue-50/80'} backdrop-blur-sm`}>
+                      <div className="flex items-center gap-3">
+                        <Reply size={14} className="text-blue-500" />
+                        <div className="text-[9px] leading-tight">
+                          <p className="font-black uppercase tracking-widest text-blue-500">Replying to @{replyingTo.sender}</p>
+                          <p className="opacity-60 truncate max-w-xs md:max-w-md italic">"{replyingTo.text}"</p>
+                        </div>
                       </div>
-                    </div>
-                    <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full bg-black/5"><X size={14}/></button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <div className={`p-4 md:p-8 border-t ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} shrink-0`}>
-                <div className={`flex items-center gap-3 p-2 rounded-[2rem] border-4 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'} focus-within:border-blue-500 shadow-inner`}>
-                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Broadcast frequency..." className={`flex-1 bg-transparent px-5 py-3 font-black text-sm outline-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`} />
-                  <button onClick={handleSend} className="kahoot-button-blue p-4 rounded-2xl text-white shadow-xl active:scale-95 transition-all"><Send size={24} /></button>
+                      <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full bg-black/5 hover:bg-black/10"><X size={12}/></button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <div className="p-4 md:p-6">
+                  <div className={`flex items-center gap-3 p-2 rounded-[2rem] border-4 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'} focus-within:border-blue-500 shadow-inner`}>
+                    <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Type frequency..." className={`flex-1 bg-transparent px-5 py-3 font-black text-sm outline-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`} />
+                    <button onClick={handleSend} disabled={isSending} className="kahoot-button-blue p-4 rounded-2xl text-white shadow-xl active:scale-95 transition-all disabled:opacity-50"><Send size={20} /></button>
+                  </div>
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center opacity-30">
-              <Radio size={80} className="mb-6 text-blue-500" />
-              <h3 className="text-3xl font-black uppercase italic tracking-tighter mb-4">Citizen Terminal</h3>
-              <p className="text-xs font-black uppercase tracking-widest">Select a frequency to activate transmissions</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center opacity-20">
+              <Radio size={80} className="mb-6 animate-pulse" />
+              <h3 className="text-3xl font-black uppercase italic tracking-tighter mb-4">Neural Hub</h3>
+              <p className="text-xs font-black uppercase tracking-widest">Select a signal frequency to start communicating</p>
             </div>
           )}
         </div>
@@ -279,7 +292,7 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`w-full max-w-sm rounded-[3rem] p-8 ${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} border-4 shadow-2xl relative`}>
               <button onClick={() => setViewingReacters(null)} className="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-all"><X size={24}/></button>
               <h3 className="text-xl font-black uppercase italic mb-6">Synchronization Core {viewingReacters.emoji}</h3>
-              <div className="space-y-3 max-h-[300px] overflow-y-auto fading-scrollbar">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto fading-scrollbar">
                 {viewingReacters.users.map(u => (
                   <button key={u} onClick={() => { onNavigateToProfile(u); setViewingReacters(null); }} className="w-full p-3 rounded-2xl flex items-center gap-3 hover:bg-black/5 transition-all">
                     <div className="w-8 h-8 rounded-lg bg-custom text-white font-black flex items-center justify-center italic text-xs border-2 border-white/20">{u[0].toUpperCase()}</div>
@@ -302,7 +315,7 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
                  <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} placeholder="Group Name..." className="w-full p-4 rounded-2xl border-2 bg-black/5 font-black text-center text-lg outline-none focus:border-custom" />
                  <div className="max-h-48 overflow-y-auto fading-scrollbar p-2 space-y-2 bg-black/5 rounded-2xl">
                     {allUsers.filter(u => u.username !== currentUser.username).map(u => (
-                      <button key={u.username} onClick={() => setSelectedForGroup(prev => prev.includes(u.username) ? prev.filter(x => x !== u.username) : [...prev, u.username])} className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${selectedForGroup.includes(u.username) ? 'bg-blue-600 text-white' : 'hover:bg-black/5'}`}>
+                      <button key={u.username} onClick={() => setSelectedForGroup(prev => prev.includes(u.username) ? prev.filter(x => x !== u.username) : [...prev, u.username])} className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${selectedForGroup.includes(u.username) ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-black/5'}`}>
                          <div className="w-8 h-8 rounded-lg bg-custom text-white font-black flex items-center justify-center italic text-xs shrink-0">{u.displayName[0]}</div>
                          <p className="text-[12px] font-black uppercase flex-1 text-left">{u.displayName}</p>
                          {selectedForGroup.includes(u.username) && <Check size={16}/>}

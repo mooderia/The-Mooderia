@@ -131,10 +131,14 @@ const App: React.FC = () => {
     if (currentUser) {
       localStorage.setItem('mooderia_user', JSON.stringify(currentUser));
       setAllUsers(prev => {
-        const idx = prev.findIndex(u => u.username === currentUser.username);
         const updated = [...prev];
-        if (idx > -1) updated[idx] = currentUser;
-        else updated.push(currentUser);
+        const idx = updated.findIndex(u => u.username === currentUser.username);
+        if (idx > -1) {
+          // Merge lists carefully
+          updated[idx] = { ...updated[idx], ...currentUser };
+        } else {
+          updated.push(currentUser);
+        }
         return updated;
       });
     }
@@ -154,26 +158,28 @@ const App: React.FC = () => {
     if (!currentUser || currentUser.username === targetUsername) return;
     const isFollowing = currentUser.following.includes(targetUsername);
     
+    // Immediate state update for master list
     setAllUsers(prev => prev.map(u => {
       if (u.username === currentUser.username) {
-        const updatedFollowing = isFollowing 
+        const nextFollowing = isFollowing 
           ? u.following.filter(f => f !== targetUsername)
           : [...u.following, targetUsername];
-        return { ...u, following: updatedFollowing };
+        return { ...u, following: nextFollowing };
       }
       if (u.username === targetUsername) {
-        const updatedFollowers = isFollowing
+        const nextFollowers = isFollowing
           ? (u.followers || []).filter(f => f !== currentUser.username)
           : [...(u.followers || []), currentUser.username];
-        return { ...u, followers: updatedFollowers };
+        return { ...u, followers: nextFollowers };
       }
       return u;
     }));
 
-    const newFollowing = isFollowing 
+    // Update currentUser local state
+    const nextFollowing = isFollowing 
       ? currentUser.following.filter(f => f !== targetUsername)
       : [...currentUser.following, targetUsername];
-    setCurrentUser({ ...currentUser, following: newFollowing });
+    setCurrentUser({ ...currentUser, following: nextFollowing });
 
     if (!isFollowing) addNotification(targetUsername, 'follow', '');
   };
@@ -203,7 +209,7 @@ const App: React.FC = () => {
       ...currentUser,
       blockedUsers: [...currentUser.blockedUsers, targetUsername],
       following: currentUser.following.filter(f => f !== targetUsername),
-      followers: currentUser.followers.filter(f => f !== currentUser.username)
+      followers: currentUser.followers.filter(f => f !== targetUsername)
     });
   };
 
@@ -226,23 +232,41 @@ const App: React.FC = () => {
     setAllMessages(prev => [...prev, newMessage]);
   };
 
+  // Fix: Added handleGroupUpdate to update group information in the state
+  const handleGroupUpdate = (group: Group) => {
+    setAllGroups(prev => prev.map(g => g.id === group.id ? group : g));
+  };
+
+  // Fix: Added handleGroupCreate to add a new group to the state
+  const handleGroupCreate = (group: Group) => {
+    setAllGroups(prev => [...prev, group]);
+  };
+
   const handleMessageReaction = (msgId: string, emoji: string) => {
     if (!currentUser) return;
     setAllMessages(prev => prev.map(m => {
       if (m.id === msgId) {
         const reactions = [...(m.reactions || [])];
         const reactionIdx = reactions.findIndex(r => r.emoji === emoji);
+        
         if (reactionIdx > -1) {
           const reaction = reactions[reactionIdx];
           const userIdx = reaction.users.indexOf(currentUser.username);
+          
           if (userIdx > -1) {
+            // Unreact (Same emoji clicked twice)
             const newUsers = reaction.users.filter(u => u !== currentUser.username);
-            if (newUsers.length === 0) reactions.splice(reactionIdx, 1);
-            else reactions[reactionIdx] = { ...reaction, users: newUsers };
+            if (newUsers.length === 0) {
+              reactions.splice(reactionIdx, 1);
+            } else {
+              reactions[reactionIdx] = { ...reaction, users: newUsers };
+            }
           } else {
+            // Add user to existing reaction emoji
             reactions[reactionIdx] = { ...reaction, users: [...reaction.users, currentUser.username] };
           }
         } else {
+          // Add brand new emoji reaction
           reactions.push({ emoji, users: [currentUser.username] });
         }
         return { ...m, reactions };
@@ -251,10 +275,10 @@ const App: React.FC = () => {
     }));
   };
 
-  // Auth and general state handlers
   const onLogin = (user: User) => {
-    setCurrentUser(user);
-    setViewingUsername(user.username);
+    const migrated = migrateUserData(user);
+    setCurrentUser(migrated);
+    setViewingUsername(migrated.username);
   };
 
   const handleLogout = () => {
@@ -263,32 +287,24 @@ const App: React.FC = () => {
     setActiveSection('Home');
   };
 
-  // Post handlers
   const handleHeart = (postId: string) => {
     if (!currentUser) return;
     setAllPosts(prev => prev.map(p => {
       if (p.id === postId) {
         const isLiked = p.likes.includes(currentUser.username);
-        const newLikes = isLiked 
+        const nextLikes = isLiked 
           ? p.likes.filter(u => u !== currentUser.username)
           : [...p.likes, currentUser.username];
-        
-        if (!isLiked) {
-          addNotification(p.author, 'heart', p.content.substring(0, 20), p.id);
-        }
-        return { ...p, likes: newLikes };
+        if (!isLiked) addNotification(p.author, 'heart', p.content.substring(0, 20), p.id);
+        return { ...p, likes: nextLikes };
       }
       return p;
     }));
   };
 
-  const handleDeletePost = (postId: string) => {
-    setAllPosts(prev => prev.filter(p => p.id !== postId));
-  };
+  const handleDeletePost = (postId: string) => setAllPosts(prev => prev.filter(p => p.id !== postId));
 
-  const handleEditPost = (postId: string, newContent: string) => {
-    setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, content: newContent } : p));
-  };
+  const handleEditPost = (postId: string, newContent: string) => setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, content: newContent } : p));
 
   const handleCommentInteraction = (postId: string, commentId: string, action: 'heart' | 'reply', replyText?: string) => {
     if (!currentUser) return;
@@ -297,9 +313,8 @@ const App: React.FC = () => {
         const updateComments = (comments: Comment[]): Comment[] => {
           return comments.map(c => {
             if (c.id === commentId) {
-              if (action === 'heart') {
-                return { ...c, hearts: c.hearts + 1 };
-              } else if (action === 'reply' && replyText) {
+              if (action === 'heart') return { ...c, hearts: c.hearts + 1 };
+              if (action === 'reply' && replyText) {
                 const newReply: Comment = {
                   id: Math.random().toString(36).substr(2, 9),
                   author: currentUser.username,
@@ -339,7 +354,6 @@ const App: React.FC = () => {
     addNotification(post.author, 'repost', post.content.substring(0, 20), post.id);
   };
 
-  // Pet logic handler
   const updatePetStats = (hunger: number, thirst: number, rest: number, coins: number, exp: number = 0, sleepUntil: number | null = null, newEmoji?: string, markChosen?: boolean, newName?: string, gameCooldownId?: string) => {
     if (!currentUser) return;
     setCurrentUser(prev => {
@@ -368,29 +382,13 @@ const App: React.FC = () => {
     });
   };
 
-  // Moderation handler
   const handleViolation = (reason: string) => {
     if (!currentUser) return;
     const newWarnings = (currentUser.warnings || 0) + 1;
     const isBanned = newWarnings >= 3;
-    
-    setCurrentUser({
-      ...currentUser,
-      warnings: newWarnings,
-      isBanned: isBanned
-    });
-
+    setCurrentUser({ ...currentUser, warnings: newWarnings, isBanned });
     setActiveWarning({ count: newWarnings, reason });
     addNotification(currentUser.username, 'warning', reason);
-  };
-
-  // Group handlers
-  const handleGroupUpdate = (group: Group) => {
-    setAllGroups(prev => prev.map(g => g.id === group.id ? group : g));
-  };
-
-  const handleGroupCreate = (group: Group) => {
-    setAllGroups(prev => [...prev, group]);
   };
 
   if (isAppStarting) return <LoadingScreen />;
@@ -432,29 +430,9 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {isMoodModalOpen && (
-          <MoodCheckIn 
-            onSubmit={(m) => { 
-              const today = new Date().toDateString(); 
-              setCurrentUser({ 
-                ...currentUser!, 
-                moodStreak: currentUser!.lastMoodDate === today ? currentUser!.moodStreak : (currentUser!.moodStreak || 0) + 1, 
-                lastMoodDate: today, 
-                moodHistory: [...(currentUser!.moodHistory || []), { date: today, mood: m, score: MOOD_SCORES[m || 'Normal'] }] 
-              }); 
-              setIsMoodModalOpen(false); 
-            }} 
-            isDarkMode={isDarkMode} 
-          />
-        )}
-      </AnimatePresence>
       <Sidebar 
         activeSection={activeSection} 
-        onNavigate={(s) => { 
-          setActiveSection(s); 
-          if(s === 'Profile') setViewingUsername(currentUser!.username); 
-        }} 
+        onNavigate={(s) => { setActiveSection(s); if(s === 'Profile') setViewingUsername(currentUser!.username); }} 
         isDarkMode={isDarkMode} 
         user={currentUser!} 
         unreadMessages={allMessages.filter(m => m.recipient === currentUser!.username && !m.read).length} 
@@ -466,7 +444,7 @@ const App: React.FC = () => {
             key={activeSection + (activeSection === 'Profile' ? viewingUsername : '')} 
             initial={{ opacity: 0, y: 10 }} 
             animate={{ opacity: 1, y: 0 }} 
-            className={`max-w-6xl mx-auto w-full flex-1 flex flex-col min-h-0`}
+            className={`max-w-6xl mx-auto w-full flex-1 flex flex-col min-h-0 h-full`}
           >
             {activeSection === 'Home' && <HomeSection user={currentUser!} posts={allPosts} isDarkMode={isDarkMode} />}
             {activeSection === 'Mood' && (
@@ -504,39 +482,9 @@ const App: React.FC = () => {
                 onViolation={handleViolation}
               />
             )}
-            {activeSection === 'Notifications' && (
-              <NotificationsSection 
-                notifications={notifications.filter(n => n.recipient === currentUser!.username)} 
-                isDarkMode={isDarkMode} 
-                onMarkRead={() => setNotifications(notifications.map(n => n.recipient === currentUser!.username ? {...n, read: true} : n))} 
-              />
-            )}
-            {activeSection === 'Profile' && profileToView && (
-              <ProfileSection 
-                user={profileToView} 
-                allPosts={allPosts} 
-                isDarkMode={isDarkMode} 
-                currentUser={currentUser!} 
-                onEditProfile={(dn, un, pp, ti, bp, pc, bi) => { 
-                  setCurrentUser({...currentUser!, displayName: dn, username: un, profilePic: pp, title: ti, profileColor: pc, bio: bi}); 
-                  setViewingUsername(un); 
-                }} 
-                onBlock={handleBlock} 
-                onFollow={handleFollow} 
-              />
-            )}
-            {activeSection === 'Settings' && (
-              <SettingsSection 
-                isDarkMode={isDarkMode} 
-                onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} 
-                onLogout={handleLogout} 
-                user={currentUser!} 
-                onUnblock={(u) => {
-                  const newBlocked = currentUser!.blockedUsers.filter(b => b !== u);
-                  setCurrentUser({...currentUser!, blockedUsers: newBlocked});
-                }} 
-              />
-            )}
+            {activeSection === 'Notifications' && <NotificationsSection notifications={notifications.filter(n => n.recipient === currentUser!.username)} isDarkMode={isDarkMode} onMarkRead={() => setNotifications(notifications.map(n => n.recipient === currentUser!.username ? {...n, read: true} : n))} />}
+            {activeSection === 'Profile' && profileToView && <ProfileSection user={profileToView} allPosts={allPosts} isDarkMode={isDarkMode} currentUser={currentUser!} onEditProfile={(dn, un, pp, ti, bp, pc, bi) => { setCurrentUser({...currentUser!, displayName: dn, username: un, profilePic: pp, title: ti, profileColor: pc, bio: bi}); setViewingUsername(un); }} onBlock={handleBlock} onFollow={handleFollow} />}
+            {activeSection === 'Settings' && <SettingsSection isDarkMode={isDarkMode} onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} onLogout={handleLogout} user={currentUser!} onUnblock={(u) => { const newBlocked = currentUser!.blockedUsers.filter(b => b !== u); setCurrentUser({...currentUser!, blockedUsers: newBlocked}); }} />}
           </motion.div>
         </div>
       </main>
