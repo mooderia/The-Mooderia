@@ -33,8 +33,8 @@ const HomeSection: React.FC<HomeSectionProps> = ({ user, posts, isDarkMode }) =>
   }, [user.moodHistory]);
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-10">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+    <div className="space-y-6 md:space-y-8 pb-10 flex flex-col h-full min-h-0">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shrink-0">
         <div className="text-center md:text-left w-full md:w-auto">
           <h2 className={`text-4xl md:text-5xl font-black italic tracking-tighter uppercase ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Welcome, {user.displayName}!</h2>
           <p className="opacity-40 font-black uppercase tracking-[0.2em] text-[10px] md:text-xs mt-2">Citizenship Tier: {user.title}</p>
@@ -48,28 +48,28 @@ const HomeSection: React.FC<HomeSectionProps> = ({ user, posts, isDarkMode }) =>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 shrink-0">
         <div className={`p-6 md:p-8 rounded-[3rem] ${isDarkMode ? 'bg-[#111111]' : 'bg-white'} shadow-2xl border-b-[8px] border-blue-500/10`}>
-          <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em] mb-4">Metropolis Circles</p>
+          <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em] mb-4">Circles</p>
           <p className="text-4xl md:text-5xl font-black text-[#1368ce] italic">{user.following.length}</p>
         </div>
         <div className={`p-6 md:p-8 rounded-[3rem] ${isDarkMode ? 'bg-[#111111]' : 'bg-white'} shadow-2xl border-b-[8px] border-green-500/10`}>
-          <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em] mb-4">Citizens Reached</p>
+          <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em] mb-4">Citizens</p>
           <p className="text-4xl md:text-5xl font-black text-[#26890c] italic">{user.followers.length}</p>
         </div>
         <div className={`col-span-2 md:col-span-1 p-6 md:p-8 rounded-[3rem] ${isDarkMode ? 'bg-[#111111]' : 'bg-white'} shadow-2xl border-b-[8px] border-red-500/10`}>
-          <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em] mb-4">Harmony Level</p>
+          <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em] mb-4">Harmony</p>
           <div className="flex items-center gap-3"><p className="text-4xl md:text-5xl font-black text-[#e21b3c] italic">{happiness}%</p></div>
         </div>
       </div>
 
-      <div className={`p-6 md:p-8 rounded-[3rem] md:rounded-[4rem] ${isDarkMode ? 'bg-[#111111]' : 'bg-white'} shadow-2xl overflow-hidden border-4 border-black/5`}>
-        <div className="flex justify-between items-center mb-6 px-2">
+      <div className={`flex-1 min-h-[350px] p-6 md:p-8 rounded-[3rem] md:rounded-[4rem] ${isDarkMode ? 'bg-[#111111]' : 'bg-white'} shadow-2xl overflow-hidden border-4 border-black/5 flex flex-col`}>
+        <div className="flex justify-between items-center mb-6 px-2 shrink-0">
           <h3 className="text-xl md:text-2xl font-black uppercase italic flex items-center gap-3"><TrendingUp className="text-custom" size={24} /> Sync History</h3>
           <div className="bg-custom/10 px-4 py-1.5 rounded-full border-2 border-custom/20 hidden sm:block"><span className="text-custom font-black text-[10px] uppercase tracking-widest">Active Resonance</span></div>
         </div>
-        <div className="h-64 md:h-72 w-full min-h-[256px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="flex-1 w-full min-h-0">
+          <ResponsiveContainer width="100%" height="100%" minHeight={200}>
             <AreaChart data={chartData}>
               <CartesianGrid strokeDasharray="6 6" vertical={false} stroke={isDarkMode ? "#222" : "#eee"} />
               <XAxis dataKey="name" hide />
@@ -81,7 +81,7 @@ const HomeSection: React.FC<HomeSectionProps> = ({ user, posts, isDarkMode }) =>
         </div>
       </div>
       
-      <div className={`p-8 md:p-10 rounded-[3rem] border-l-[12px] border-[#ffa602] ${isDarkMode ? 'bg-[#111111]' : 'bg-white'} shadow-2xl relative overflow-hidden group`}>
+      <div className={`p-8 md:p-10 rounded-[3rem] border-l-[12px] border-[#ffa602] ${isDarkMode ? 'bg-[#111111]' : 'bg-white'} shadow-2xl relative overflow-hidden group shrink-0`}>
         <h4 className="font-black text-xl mb-4 uppercase italic tracking-tighter opacity-30">Metropolis Insight</h4>
         <p className="italic font-bold text-xl md:text-3xl leading-snug opacity-90 relative z-10">"{todayWisdom}"</p>
       </div>

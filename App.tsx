@@ -425,13 +425,13 @@ const App: React.FC = () => {
         unreadMessages={allMessages.filter(m => m.recipient === currentUser!.username && !m.read).length} 
         unreadNotifications={notifications.filter(n => n.recipient === currentUser!.username && !n.read).length} 
       />
-      <main className="flex-1 flex flex-col relative pt-14 pb-16 md:pt-0 md:pb-0 h-full overflow-hidden">
-        <div className={`flex-1 ${isFixedSection ? 'overflow-hidden' : 'overflow-y-auto fading-scrollbar'} p-4 md:p-8`}>
+      <main className="flex-1 flex flex-col min-h-0 relative pt-14 pb-16 md:pt-0 md:pb-0 h-full overflow-hidden">
+        <div className={`flex-1 flex flex-col min-h-0 ${isFixedSection ? 'overflow-hidden' : 'overflow-y-auto fading-scrollbar'} p-4 md:p-8`}>
           <motion.div 
             key={activeSection + (activeSection === 'Profile' ? viewingUsername : '')} 
             initial={{ opacity: 0, y: 10 }} 
             animate={{ opacity: 1, y: 0 }} 
-            className={`max-w-6xl mx-auto h-full ${isFixedSection ? 'flex flex-col' : ''}`}
+            className={`max-w-6xl mx-auto w-full flex-1 flex flex-col min-h-0`}
           >
             {activeSection === 'Home' && <HomeSection user={currentUser!} posts={allPosts} isDarkMode={isDarkMode} />}
             {activeSection === 'Mood' && (

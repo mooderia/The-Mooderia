@@ -2,13 +2,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Initialize AI right before use to ensure environment variables are fresh
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API_KEY not found in environment. Please add it to Vercel/Local settings.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const getPsychiatristResponse = async (message: string) => {
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: message,
       config: {
         systemInstruction: "You are Dr. Philippe Pinel, a compassionate and expert psychiatrist in the city of Mooderia. You provide helpful advice for mental well-being while maintaining a professional yet friendly tone. Keep responses concise and focused on wellness.",
@@ -17,7 +23,7 @@ export const getPsychiatristResponse = async (message: string) => {
     return { text: response.text || "The metropolis connection is fuzzy. Can you repeat that?" };
   } catch (error) {
     console.error("Psychiatrist API Error:", error);
-    return { text: "I'm currently attending to another citizen. Please try again in a moment." };
+    return { text: "I'm currently attending to another citizen. Please ensure your Metropolis Link (API Key) is active." };
   }
 };
 
