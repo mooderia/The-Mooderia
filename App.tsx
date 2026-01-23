@@ -31,6 +31,23 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Data Migration Utility
+  const migrateUserData = (user: User): User => {
+    // Ensure all new properties exist to prevent crashes after updates
+    return {
+      ...user,
+      blockedUsers: user.blockedUsers || [],
+      moodHistory: user.moodHistory || [],
+      following: user.following || [],
+      followers: user.followers || [],
+      moodStreak: user.moodStreak || 0,
+      petLevel: user.petLevel || 1,
+      moodCoins: user.moodCoins ?? 100,
+      gameCooldowns: user.gameCooldowns || {},
+      petHasBeenChosen: !!user.petHasBeenChosen
+    };
+  };
+
   const profileToView = useMemo(() => {
     if (!viewingUsername) return null;
     if (currentUser && viewingUsername === currentUser.username) return currentUser;
@@ -65,11 +82,15 @@ const App: React.FC = () => {
     
     if (savedUser) {
       try {
-        const user: User = JSON.parse(savedUser);
+        let user: User = JSON.parse(savedUser);
+        user = migrateUserData(user);
+        
         const now = Date.now();
         if (user.email === 'travismiguel014@gmail.com') user.title = 'Creator';
+        
         const lastUpdate = user.petLastUpdate || now;
         const elapsedMinutes = Math.floor((now - lastUpdate) / 60000);
+        
         if (elapsedMinutes > 0) {
           user.petHunger = Math.max(0, user.petHunger - elapsedMinutes * 0.15);
           user.petThirst = Math.max(0, user.petThirst - elapsedMinutes * 0.2);
@@ -81,7 +102,10 @@ const App: React.FC = () => {
         }
         setCurrentUser(user);
         setViewingUsername(user.username);
-      } catch (e) { console.error("Data corruption recovery triggered."); }
+      } catch (e) { 
+        console.error("Data corruption recovery triggered.", e);
+        localStorage.removeItem('mooderia_user');
+      }
     }
 
     setAllPosts(JSON.parse(savedPosts));
@@ -94,15 +118,6 @@ const App: React.FC = () => {
     const timer = setTimeout(() => setIsAppStarting(false), 2000);
     return () => clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    if (!isAppStarting && currentUser) {
-      const todayStr = new Date().toDateString();
-      if (currentUser.lastMoodDate !== todayStr) {
-        setIsMoodModalOpen(true);
-      }
-    }
-  }, [isAppStarting, currentUser?.username, currentUser?.lastMoodDate]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -283,7 +298,7 @@ const App: React.FC = () => {
   };
 
   const onLogin = (user: User) => {
-    setCurrentUser(user);
+    setCurrentUser(migrateUserData(user));
     setActiveSection('Home');
     setViewingUsername(user.username);
   };

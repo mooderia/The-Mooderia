@@ -1,31 +1,45 @@
 
-import { GoogleGenAI, Type } from "@google/genai/web";
+import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize AI right before use to ensure environment variables are fresh
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getPsychiatristResponse = async (message: string) => {
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: message,
-    config: {
-      systemInstruction: "You are Dr. Philippe Pinel, a compassionate and expert psychiatrist in the city of Mooderia. You provide helpful advice for mental well-being while maintaining a professional yet friendly tone.",
-    }
-  });
-  return { text: response.text };
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: message,
+      config: {
+        systemInstruction: "You are Dr. Philippe Pinel, a compassionate and expert psychiatrist in the city of Mooderia. You provide helpful advice for mental well-being while maintaining a professional yet friendly tone. Keep responses concise and focused on wellness.",
+      }
+    });
+    return { text: response.text || "The metropolis connection is fuzzy. Can you repeat that?" };
+  } catch (error) {
+    console.error("Psychiatrist API Error:", error);
+    return { text: "I'm currently attending to another citizen. Please try again in a moment." };
+  }
 };
 
 export const getHoroscope = async (sign: string) => {
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Provide a daily horoscope for ${sign} today.`,
-    config: {
-      systemInstruction: "You are an expert astrologer. Provide a 3-sentence horoscope that is encouraging and insightful.",
-    }
-  });
-  return response.text;
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Provide a daily horoscope for ${sign} today.`,
+      config: {
+        systemInstruction: "You are an expert astrologer. Provide a 3-sentence horoscope that is encouraging and insightful. Use mystical but modern language.",
+      }
+    });
+    return response.text || "The stars are veiled today.";
+  } catch (error) {
+    return "The constellations are recalibrating. Check back shortly.";
+  }
 };
 
 export const getLovePrediction = async (sign1: string, sign2: string) => {
+  try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Predict love compatibility between ${sign1} and ${sign2}. Return only a JSON object with 'percentage' (0-100) and 'reason'.`,
@@ -43,15 +57,7 @@ export const getLovePrediction = async (sign1: string, sign2: string) => {
     });
     
     return JSON.parse(response.text.trim());
+  } catch (error) {
+    return { percentage: 50, reason: "The romantic frequencies are currently experiencing static." };
+  }
 }
-
-export const getTellerResponse = async (question: string) => {
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Predict the answer to this question: ${question}`,
-    config: {
-      systemInstruction: "You are a mystical fortune teller. You must answer ONLY starting with one of these five categories: [YES, NO, MAYBE, BIG YES, BIG NO]. After the category, add a very short, poetic, and mysterious sentence. Example: 'YES. The moon smiles upon your path.'",
-    }
-  });
-  return response.text;
-};
