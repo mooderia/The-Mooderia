@@ -25,7 +25,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     const allUsers: User[] = JSON.parse(allUsersStr);
 
     if (isSignUp) {
-      const userExists = allUsers.some(u => u.email === email || u.username === username);
+      const userExists = allUsers.some(u => u.email.toLowerCase() === email.toLowerCase() || u.username.toLowerCase() === username.toLowerCase());
       if (userExists) {
         setError('This identity already exists in the metropolis.');
         return;
@@ -44,7 +44,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         reposts: [],
         moodHistory: [],
         moodStreak: 0,
-        title: email === 'travismiguel014@gmail.com' ? 'Creator' : 'Citizen',
+        title: email.toLowerCase() === 'travismiguel014@gmail.com' ? 'Creator' : 'Citizen',
         likesReceived: 0,
         petName: 'Guardian',
         moodCoins: 100,
@@ -57,7 +57,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         petHasBeenChosen: false,
         petLastUpdate: Date.now(),
         petSleepUntil: null,
-        gameCooldowns: {}
+        gameCooldowns: {},
+        warnings: 0,
+        isBanned: false
       };
 
       allUsers.push(newUser);
@@ -69,11 +71,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         onLogin(newUser);
       }, 1500);
     } else {
-      const existingUser = allUsers.find(u => u.email === email && u.password === password);
+      const existingUser = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
       
       if (existingUser) {
         setIsAuthenticating(true);
         setTimeout(() => {
+          // Explicitly save to ensure session consistency
           localStorage.setItem('mooderia_user', JSON.stringify(existingUser));
           onLogin(existingUser);
         }, 1200);

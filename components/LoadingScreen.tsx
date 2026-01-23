@@ -68,35 +68,22 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
         </motion.div>
       </div>
 
-      {/* Center Logo/Icon */}
-      <motion.div
-        animate={{ 
-          scale: [1, 1.1, 1],
-          rotate: [0, 5, -5, 0]
-        }}
-        transition={{ 
-          duration: 1.5, 
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className="relative mb-12"
-      >
-        <div className="w-40 h-40 md:w-56 md:h-56 bg-white rounded-[3rem] shadow-[0_20px_0_0_rgba(0,0,0,0.2)] flex items-center justify-center border-b-[12px] border-gray-200">
-          <Smile size={120} className="text-[#46178f] md:w-[160px] md:h-[160px]" strokeWidth={2.5} />
-        </div>
-        <motion.div 
-          animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1, repeat: Infinity }}
-          className="absolute -top-4 -right-4 bg-yellow-400 p-4 rounded-full shadow-lg"
+      <div className="text-center z-10 flex flex-col items-center">
+        {/* Animated Main Brand Name */}
+        <motion.h1 
+          animate={{ 
+            scale: [1, 1.05, 1],
+            rotate: [-1, 1, -1]
+          }}
+          transition={{ 
+            duration: 2.5, 
+            repeat: Infinity, 
+            ease: "easeInOut" 
+          }}
+          className="text-6xl md:text-8xl font-black text-white italic tracking-tighter uppercase mb-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.3)]"
         >
-          <Sparkles className="text-white" size={32} />
-        </motion.div>
-      </motion.div>
-
-      <div className="text-center z-10">
-        <h1 className="text-5xl md:text-7xl font-black text-white italic tracking-tighter uppercase mb-6 drop-shadow-lg">
           MOODERIA
-        </h1>
+        </motion.h1>
         
         <div className="h-12 flex items-center justify-center">
           <AnimatePresence mode="wait">

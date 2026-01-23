@@ -14,7 +14,7 @@ import NotificationsSection from './sections/NotificationsSection';
 import AuthScreen from './sections/AuthScreen';
 import LoadingScreen from './components/LoadingScreen';
 import { getExpNeeded, MOOD_SCORES } from './constants';
-import { Trophy, Share2, X } from 'lucide-react';
+import { Trophy, Share2, X, ShieldAlert, AlertOctagon, LogOut, Gavel } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -31,9 +31,11 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Warning State
+  const [activeWarning, setActiveWarning] = useState<{ count: number, reason: string } | null>(null);
+
   // Data Migration Utility
   const migrateUserData = (user: User): User => {
-    // Ensure all new properties exist to prevent crashes after updates
     return {
       ...user,
       blockedUsers: user.blockedUsers || [],
@@ -44,7 +46,9 @@ const App: React.FC = () => {
       petLevel: user.petLevel || 1,
       moodCoins: user.moodCoins ?? 100,
       gameCooldowns: user.gameCooldowns || {},
-      petHasBeenChosen: !!user.petHasBeenChosen
+      petHasBeenChosen: !!user.petHasBeenChosen,
+      warnings: user.warnings ?? 0,
+      isBanned: !!user.isBanned
     };
   };
 
@@ -57,11 +61,11 @@ const App: React.FC = () => {
 
   const addNotification = useCallback((recipient: string, type: Notification['type'], snippet: string, postId: string = '') => {
     if (!currentUser) return;
-    if (recipient === currentUser.username && type !== 'achievement' && type !== 'tier') return;
+    if (recipient === currentUser.username && type !== 'achievement' && type !== 'tier' && type !== 'warning') return;
     
     const newNotif: Notification = {
       id: Math.random().toString(36).substr(2, 9),
-      fromUser: currentUser?.username || 'Metropolis',
+      fromUser: type === 'warning' ? 'Police Force' : (currentUser?.username || 'Metropolis'),
       recipient,
       type,
       postId,
@@ -119,6 +123,17 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // AUTOMATIC MOOD CHECK-IN TRIGGER
+  useEffect(() => {
+    if (currentUser && !currentUser.isBanned && isLoaded) {
+      const today = new Date().toDateString();
+      // Only open if the last mood date is NOT today
+      if (currentUser.lastMoodDate !== today) {
+        setIsMoodModalOpen(true);
+      }
+    }
+  }, [currentUser?.username, currentUser?.lastMoodDate, isLoaded]);
+
   useEffect(() => {
     if (!isLoaded) return;
     if (currentUser) {
@@ -137,31 +152,43 @@ const App: React.FC = () => {
     setGlobalUpdateToggle(t => t + 1);
   }, [currentUser, allPosts, allMessages, allGroups, notifications, isDarkMode, isLoaded]);
 
-  const handleFollow = (targetUsername: string) => {
+  const handleViolation = (reason: string) => {
     if (!currentUser) return;
-    const isFollowing = currentUser.following.includes(targetUsername);
-    const updatedFollowing = isFollowing 
-      ? currentUser.following.filter(u => u !== targetUsername) 
-      : [...currentUser.following, targetUsername];
-    setCurrentUser({ ...currentUser, following: updatedFollowing });
-    const allUsers: User[] = JSON.parse(localStorage.getItem('mooderia_all_users') || '[]');
-    const targetIdx = allUsers.findIndex(u => u.username === targetUsername);
-    if (targetIdx > -1) {
-      const targetUser = { ...allUsers[targetIdx] };
-      targetUser.followers = isFollowing 
-        ? targetUser.followers.filter(u => u !== currentUser.username) 
-        : [...targetUser.followers, currentUser.username];
-      allUsers[targetIdx] = targetUser;
-      localStorage.setItem('mooderia_all_users', JSON.stringify(allUsers));
-      if (!isFollowing) addNotification(targetUsername, 'follow', 'started following your frequency!');
-    }
+    const newWarnings = (currentUser.warnings || 0) + 1;
+    const isNowBanned = newWarnings >= 3;
+    
+    setCurrentUser({
+      ...currentUser,
+      warnings: newWarnings,
+      isBanned: isNowBanned
+    });
+
+    addNotification(currentUser.username, 'warning', `Police Warning ${newWarnings}/3: ${reason}`);
+    setActiveWarning({ count: newWarnings, reason });
+  };
+
+  const handleLogout = () => {
+    console.log("System Logout Initialized");
+    localStorage.removeItem('mooderia_user');
+    setCurrentUser(null);
+    setViewingUsername(null);
+    setActiveSection('Home');
+    setIsMoodModalOpen(false);
+  };
+
+  const onLogin = (user: User) => {
+    const migrated = migrateUserData(user);
+    setCurrentUser(migrated);
+    setViewingUsername(migrated.username);
   };
 
   const handleHeart = (postId: string) => {
     if (!currentUser) return;
     setAllPosts(prev => prev.map(p => {
       if (p.id === postId) {
-        if (p.author !== currentUser.username) addNotification(p.author, 'heart', 'liked your transmission', p.id);
+        if (p.author !== currentUser.username) {
+          addNotification(p.author, 'heart', p.content.substring(0, 20), p.id);
+        }
         return { ...p, hearts: p.hearts + 1 };
       }
       return p;
@@ -172,15 +199,16 @@ const App: React.FC = () => {
     if (!currentUser) return;
     setAllPosts(prev => prev.map(p => {
       if (p.id === postId) {
-        const updateNested = (list: Comment[]): Comment[] => {
-          return list.map(c => {
+        const updateComments = (comments: Comment[]): Comment[] => {
+          return comments.map(c => {
             if (c.id === commentId) {
               if (action === 'heart') {
-                if (c.author !== currentUser.username) addNotification(c.author, 'comment_heart', 'liked your frequency', postId);
+                if (c.author !== currentUser.username) {
+                  addNotification(c.author, 'comment_heart', c.text.substring(0, 20), p.id);
+                }
                 return { ...c, hearts: c.hearts + 1 };
-              }
-              if (action === 'reply' && replyText) {
-                const newRep: Comment = {
+              } else if (action === 'reply' && replyText) {
+                const newReply: Comment = {
                   id: Math.random().toString(36).substr(2, 9),
                   author: currentUser.username,
                   text: replyText,
@@ -188,151 +216,178 @@ const App: React.FC = () => {
                   timestamp: Date.now(),
                   replies: []
                 };
-                if (c.author !== currentUser.username) addNotification(c.author, 'reply', 'responded to your frequency', postId);
-                return { ...c, replies: [...c.replies, newRep] };
+                if (c.author !== currentUser.username) {
+                  addNotification(c.author, 'reply', replyText.substring(0, 20), p.id);
+                }
+                return { ...c, replies: [...(c.replies || []), newReply] };
               }
             }
-            if (c.replies.length > 0) return { ...c, replies: updateNested(c.replies) };
+            if (c.replies && c.replies.length > 0) {
+              return { ...c, replies: updateComments(c.replies) };
+            }
             return c;
           });
         };
-        return { ...p, comments: updateNested(p.comments) };
+        return { ...p, comments: updateComments(p.comments) };
       }
       return p;
     }));
   };
 
-  const handleRepost = (p: Post) => {
+  const handleRepost = (post: Post) => {
     if (!currentUser) return;
-    const newRepost: Post = {
+    const newPost: Post = {
       id: Math.random().toString(36).substr(2, 9),
       author: currentUser.username,
-      content: p.content,
+      content: post.content,
       hearts: 0,
       comments: [],
       timestamp: Date.now(),
       isRepost: true,
-      originalAuthor: p.author,
+      originalAuthor: post.author,
       visibility: 'global'
     };
-    setAllPosts(prev => [newRepost, ...prev]);
-    if (p.author !== currentUser.username) addNotification(p.author, 'repost', 'echoed your transmission', p.id);
+    setAllPosts(prev => [newPost, ...prev]);
+    if (post.author !== currentUser.username) {
+      addNotification(post.author, 'repost', post.content.substring(0, 20), newPost.id);
+    }
+  };
+
+  const handleFollow = (targetUsername: string) => {
+    if (!currentUser || currentUser.username === targetUsername) return;
+    const isFollowing = currentUser.following.includes(targetUsername);
+    if (isFollowing) {
+      setCurrentUser({ ...currentUser, following: currentUser.following.filter(u => u !== targetUsername) });
+    } else {
+      setCurrentUser({ ...currentUser, following: [...currentUser.following, targetUsername] });
+      addNotification(targetUsername, 'follow', '');
+    }
   };
 
   const handleBlock = (targetUsername: string) => {
-    if (!currentUser) return;
-    const updatedFollowing = currentUser.following.filter(u => u !== targetUsername);
-    const updatedBlocked = [...currentUser.blockedUsers, targetUsername];
-    setCurrentUser({ ...currentUser, following: updatedFollowing, blockedUsers: updatedBlocked });
-    const allUsers: User[] = JSON.parse(localStorage.getItem('mooderia_all_users') || '[]');
-    const targetIdx = allUsers.findIndex(u => u.username === targetUsername);
-    if (targetIdx > -1) {
-      const targetUser = { ...allUsers[targetIdx] };
-      targetUser.followers = targetUser.followers.filter(u => u !== currentUser.username);
-      targetUser.following = targetUser.following.filter(u => u !== currentUser.username);
-      allUsers[targetIdx] = targetUser;
-      const currentIdxGlobal = allUsers.findIndex(u => u.username === currentUser.username);
-      if (currentIdxGlobal > -1) allUsers[currentIdxGlobal].followers = allUsers[currentIdxGlobal].followers.filter(u => u !== targetUsername);
-      localStorage.setItem('mooderia_all_users', JSON.stringify(allUsers));
-    }
-    setViewingUsername(currentUser.username);
-    setActiveSection('Home');
+    if (!currentUser || currentUser.username === targetUsername) return;
+    setCurrentUser({
+      ...currentUser,
+      blockedUsers: [...currentUser.blockedUsers, targetUsername],
+      following: currentUser.following.filter(u => u !== targetUsername),
+      followers: currentUser.followers.filter(u => u !== targetUsername)
+    });
   };
 
   const updatePetStats = (hunger: number, thirst: number, rest: number, coins: number, exp: number = 0, sleepUntil: number | null = null, newEmoji?: string, markChosen?: boolean, newName?: string, gameCooldownId?: string) => {
     if (!currentUser) return;
     let newLevel = currentUser.petLevel;
-    let newExp = currentUser.petExp + exp;
-    let leveledUp = false;
-    while (newExp >= getExpNeeded(newLevel)) { 
-      newExp -= getExpNeeded(newLevel); 
-      newLevel += 1; 
-      leveledUp = true; 
+    let newExp = (currentUser.petExp || 0) + exp;
+    while (newExp >= getExpNeeded(newLevel)) {
+      newExp -= getExpNeeded(newLevel);
+      newLevel++;
+      addNotification(currentUser.username, 'achievement', `Your pet reached level ${newLevel}!`);
     }
-    if (leveledUp) addNotification(currentUser.username, 'achievement', `Your Guardian ${newName || currentUser.petName} reached Rank ${newLevel}!`);
+    const newCooldowns = { ...currentUser.gameCooldowns };
+    if (gameCooldownId) {
+      newCooldowns[gameCooldownId] = Date.now() + (5 * 60 * 1000);
+    }
     setCurrentUser({
       ...currentUser,
-      petName: newName || currentUser.petName,
       petHunger: Math.min(100, Math.max(0, currentUser.petHunger + hunger)),
       petThirst: Math.min(100, Math.max(0, currentUser.petThirst + thirst)),
       petRest: Math.min(100, Math.max(0, currentUser.petRest + rest)),
-      petExp: newExp,
+      moodCoins: (currentUser.moodCoins || 0) + coins,
       petLevel: newLevel,
-      moodCoins: currentUser.moodCoins + coins,
-      petSleepUntil: sleepUntil !== undefined ? sleepUntil : currentUser.petSleepUntil,
+      petExp: newExp,
+      petSleepUntil: sleepUntil !== null ? sleepUntil : currentUser.petSleepUntil,
       petEmoji: newEmoji || currentUser.petEmoji,
       petHasBeenChosen: markChosen !== undefined ? markChosen : currentUser.petHasBeenChosen,
-      petLastUpdate: Date.now(),
-      gameCooldowns: gameCooldownId ? { ...currentUser.gameCooldowns, [gameCooldownId]: Date.now() + 60000 } : currentUser.gameCooldowns
+      petName: newName || currentUser.petName,
+      gameCooldowns: newCooldowns
     });
   };
 
-  const handleMessageReaction = (msgId: string, emoji: string) => {
+  const handleSendMessage = (recipient: string, text: string, options?: any) => {
     if (!currentUser) return;
-    setAllMessages(prev => prev.map(m => {
-      if (m.id === msgId) {
-        let reactions = [...(m.reactions || [])];
-        const existingReaction = reactions.find(r => r.users.includes(currentUser.username));
-        if (existingReaction) {
-          if (existingReaction.emoji === emoji) {
-            existingReaction.users = existingReaction.users.filter(u => u !== currentUser.username);
-            if (existingReaction.users.length === 0) reactions = reactions.filter(r => r.emoji !== emoji);
-          } else {
-            existingReaction.users = existingReaction.users.filter(u => u !== currentUser.username);
-            if (existingReaction.users.length === 0) reactions = reactions.filter(r => r.emoji !== existingReaction.emoji);
-            const targetReaction = reactions.find(r => r.emoji === emoji);
-            if (targetReaction) targetReaction.users.push(currentUser.username);
-            else reactions.push({ emoji, users: [currentUser.username] });
-            if (m.sender !== currentUser.username) addNotification(m.sender, 'reaction', emoji, msgId);
-          }
-        } else {
-          const targetReaction = reactions.find(r => r.emoji === emoji);
-          if (targetReaction) targetReaction.users.push(currentUser.username);
-          else reactions.push({ emoji, users: [currentUser.username] });
-          if (m.sender !== currentUser.username) addNotification(m.sender, 'reaction', emoji, msgId);
-        }
-        return { ...m, reactions };
-      }
-      return m;
-    }));
-  };
-
-  const onLogin = (user: User) => {
-    setCurrentUser(migrateUserData(user));
-    setActiveSection('Home');
-    setViewingUsername(user.username);
-  };
-
-  const handleSendMessage = (recipient: string, text: string, options?: { isGroup?: boolean, recipients?: string[], groupName?: string, replyToId?: string, replyToText?: string, replyToSender?: string, isSystem?: boolean }) => {
-    if (!currentUser) return;
-    const newMsg: Message = {
+    const newMessage: Message = {
       id: Math.random().toString(36).substr(2, 9),
       sender: currentUser.username,
       recipient,
       text,
       timestamp: Date.now(),
       read: false,
-      isGroup: options?.isGroup,
-      recipients: options?.recipients,
+      isGroup: options?.isGroup || false,
+      isSystem: options?.isSystem || false,
       groupName: options?.groupName,
       replyToId: options?.replyToId,
       replyToText: options?.replyToText,
-      replyToSender: options?.replyToSender,
-      isSystem: options?.isSystem
+      replyToSender: options?.replyToSender
     };
-    setAllMessages(prev => [...prev, newMsg]);
+    setAllMessages(prev => [...prev, newMessage]);
   };
 
-  const handleGroupUpdate = (updatedGroup: Group) => {
-    setAllGroups(prev => prev.map(g => g.id === updatedGroup.id ? updatedGroup : g));
+  const handleGroupUpdate = (group: Group) => {
+    setAllGroups(prev => prev.map(g => g.id === group.id ? group : g));
   };
 
-  const handleGroupCreate = (newGroup: Group) => {
-    setAllGroups(prev => [...prev, newGroup]);
+  const handleGroupCreate = (group: Group) => {
+    setAllGroups(prev => [...prev, group]);
+  };
+
+  const handleMessageReaction = (msgId: string, emoji: string) => {
+    if (!currentUser) return;
+    setAllMessages(prev => prev.map(m => {
+      if (m.id === msgId) {
+        const reactions = m.reactions || [];
+        const reactionIdx = reactions.findIndex(r => r.emoji === emoji);
+        if (reactionIdx > -1) {
+          const reaction = reactions[reactionIdx];
+          const userIdx = reaction.users.indexOf(currentUser.username);
+          if (userIdx > -1) {
+            const newUsers = reaction.users.filter(u => u !== currentUser.username);
+            if (newUsers.length === 0) return { ...m, reactions: reactions.filter((_, i) => i !== reactionIdx) };
+            const newReactions = [...reactions];
+            newReactions[reactionIdx] = { ...reaction, users: newUsers };
+            return { ...m, reactions: newReactions };
+          } else {
+            const newReactions = [...reactions];
+            newReactions[reactionIdx] = { ...reaction, users: [...reaction.users, currentUser.username] };
+            return { ...m, reactions: newReactions };
+          }
+        } else {
+          return { ...m, reactions: [...reactions, { emoji, users: [currentUser.username] }] };
+        }
+      }
+      return m;
+    }));
   };
 
   if (isAppStarting) return <LoadingScreen />;
   if (!currentUser) return <AuthScreen onLogin={onLogin} />;
+
+  // Banned UI Overlay
+  if (currentUser.isBanned) {
+    return (
+      <div className="fixed inset-0 z-[1000] bg-black text-white flex flex-col items-center justify-center p-8 text-center overflow-hidden">
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_red_0%,_transparent_70%)] animate-pulse pointer-events-none" />
+        <Gavel size={120} className="text-red-600 mb-8" />
+        <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-4 text-red-600">EXILED</h1>
+        <p className="text-xl md:text-2xl font-black uppercase tracking-widest mb-12 opacity-80">Identity Deletion Finalized</p>
+        
+        <div className="max-w-2xl bg-red-600/10 border-4 border-red-600 p-8 rounded-[3rem] shadow-[0_0_50px_rgba(220,38,38,0.3)] mb-12">
+           <h2 className="text-2xl font-black uppercase mb-4">CITIZEN TERMINATION REPORT</h2>
+           <p className="font-bold opacity-70 mb-4">Your frequency has been permanently restricted from the Mooderia Metropolis due to violations of the Harmony Accords.</p>
+           <div className="flex justify-center gap-4">
+              <div className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm uppercase">Threat Level: Max</div>
+              <div className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm uppercase">Ban: Permanent</div>
+           </div>
+        </div>
+
+        <button 
+          onClick={handleLogout} 
+          className="group relative flex items-center gap-3 bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-xl hover:scale-105 active:scale-95 transition-all shadow-2xl z-[1001]"
+        >
+          <LogOut size={24} /> Leave Metropolis
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{'--theme-color': currentUser.profileColor || '#e21b3c'} as React.CSSProperties} className={`h-screen max-h-screen overflow-hidden flex flex-col md:flex-row ${isDarkMode ? 'bg-[#0f0f0f] text-white' : 'bg-[#f7f8fa] text-slate-900'} transition-colors duration-300`}>
@@ -342,17 +397,57 @@ const App: React.FC = () => {
         .text-custom { color: var(--theme-color); }
         .bg-custom { background-color: var(--theme-color); }
         .border-custom { border-color: var(--theme-color); }
+        .police-flash { animation: police-flash 0.5s infinite; }
+        @keyframes police-flash {
+          0% { box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.5); border-color: #ef4444; }
+          50% { box-shadow: 0 0 20px 5px rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
+          100% { box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.5); border-color: #ef4444; }
+        }
       `}</style>
+
+      {/* Warning Modal Overlay */}
+      <AnimatePresence>
+        {activeWarning && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="w-full max-w-md bg-slate-900 text-white rounded-[3rem] p-10 text-center border-8 border-red-600 shadow-2xl police-flash overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-full h-2 flex">
+                   <div className="flex-1 bg-red-600 h-full" />
+                   <div className="flex-1 bg-blue-600 h-full" />
+                </div>
+                
+                <AlertOctagon size={80} className="mx-auto text-red-600 mb-6" />
+                <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-4">CITIZEN WARNING</h2>
+                <div className="bg-red-600 text-white inline-block px-8 py-2 rounded-full font-black text-xl mb-6 shadow-xl italic tracking-tighter">
+                  VIOLATION {activeWarning.count} / 3
+                </div>
+                
+                <p className="font-bold opacity-80 mb-8 leading-relaxed uppercase tracking-tight text-xs">
+                  Neural sensors detected an inappropriate frequency in your transmission: 
+                  <span className="block text-red-400 mt-2">"{activeWarning.reason}"</span>
+                </p>
+                
+                <p className="text-[10px] font-black uppercase opacity-40 mb-10">
+                  Continued violations will result in permanent identity deletion from the metropolis.
+                </p>
+                
+                <button onClick={() => setActiveWarning(null)} className="w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-base shadow-xl active:scale-95 transition-all">
+                  I ACKNOWLEDGE THE ACCORDS
+                </button>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isMoodModalOpen && (
           <MoodCheckIn 
             onSubmit={(m) => { 
               const today = new Date().toDateString(); 
               setCurrentUser({ 
-                ...currentUser, 
-                moodStreak: currentUser.lastMoodDate === today ? currentUser.moodStreak : (currentUser.moodStreak || 0) + 1, 
+                ...currentUser!, 
+                moodStreak: currentUser!.lastMoodDate === today ? currentUser!.moodStreak : (currentUser!.moodStreak || 0) + 1, 
                 lastMoodDate: today, 
-                moodHistory: [...(currentUser.moodHistory || []), { date: today, mood: m, score: MOOD_SCORES[m || 'Normal'] }] 
+                moodHistory: [...(currentUser!.moodHistory || []), { date: today, mood: m, score: MOOD_SCORES[m || 'Normal'] }] 
               }); 
               setIsMoodModalOpen(false); 
             }} 
@@ -364,12 +459,12 @@ const App: React.FC = () => {
         activeSection={activeSection} 
         onNavigate={(s) => { 
           setActiveSection(s); 
-          if(s === 'Profile') setViewingUsername(currentUser.username); 
+          if(s === 'Profile') setViewingUsername(currentUser!.username); 
         }} 
         isDarkMode={isDarkMode} 
-        user={currentUser} 
-        unreadMessages={allMessages.filter(m => m.recipient === currentUser.username && !m.read).length} 
-        unreadNotifications={notifications.filter(n => n.recipient === currentUser.username && !n.read).length} 
+        user={currentUser!} 
+        unreadMessages={allMessages.filter(m => m.recipient === currentUser!.username && !m.read).length} 
+        unreadNotifications={notifications.filter(n => n.recipient === currentUser!.username && !n.read).length} 
       />
       <main className="flex-1 flex flex-col relative pt-14 pb-16 md:pt-0 md:pb-0 h-full overflow-hidden">
         <div className="flex-1 overflow-y-auto fading-scrollbar p-4 md:p-8">
@@ -379,14 +474,14 @@ const App: React.FC = () => {
             animate={{ opacity: 1, y: 0 }} 
             className="max-w-5xl mx-auto"
           >
-            {activeSection === 'Home' && <HomeSection user={currentUser} posts={allPosts} isDarkMode={isDarkMode} />}
+            {activeSection === 'Home' && <HomeSection user={currentUser!} posts={allPosts} isDarkMode={isDarkMode} />}
             {activeSection === 'Mood' && (
               <MoodSection 
-                user={currentUser} 
+                user={currentUser!} 
                 posts={allPosts} 
-                onPost={(c, v) => setAllPosts(prev => [{id: Math.random().toString(36).substr(2, 9), author: currentUser.username, content: c, hearts: 0, comments: [], timestamp: Date.now(), visibility: v}, ...prev])} 
+                onPost={(c, v) => setAllPosts(prev => [{id: Math.random().toString(36).substr(2, 9), author: currentUser!.username, content: c, hearts: 0, comments: [], timestamp: Date.now(), visibility: v}, ...prev])} 
                 onHeart={handleHeart} 
-                onComment={(pid, t) => setAllPosts(prev => prev.map(p => p.id === pid ? { ...p, comments: [...p.comments, { id: Math.random().toString(36).substr(2, 9), author: currentUser.username, text: t, hearts: 0, timestamp: Date.now(), replies: [] }] } : p))} 
+                onComment={(pid, t) => setAllPosts(prev => prev.map(p => p.id === pid ? { ...p, comments: [...p.comments, { id: Math.random().toString(36).substr(2, 9), author: currentUser!.username, text: t, hearts: 0, timestamp: Date.now(), replies: [] }] } : p))} 
                 onCommentInteraction={handleCommentInteraction} 
                 onRepost={handleRepost} 
                 onFollow={handleFollow} 
@@ -394,28 +489,30 @@ const App: React.FC = () => {
                 isDarkMode={isDarkMode} 
                 onNavigateToProfile={(u) => {setViewingUsername(u); setActiveSection('Profile');}} 
                 onUpdatePet={updatePetStats} 
+                onViolation={handleViolation}
               />
             )}
             {activeSection === 'Zodiac' && <ZodiacSection isDarkMode={isDarkMode} />}
             {activeSection === 'CityHall' && (
               <CityHallSection 
                 isDarkMode={isDarkMode} 
-                currentUser={currentUser} 
+                currentUser={currentUser!} 
                 messages={allMessages} 
                 groups={allGroups}
                 onSendMessage={handleSendMessage} 
                 onGroupUpdate={handleGroupUpdate}
                 onGroupCreate={handleGroupCreate}
-                onReadMessages={(u) => setAllMessages(prev => prev.map(m => (m.recipient === currentUser.username && m.sender === u) ? {...m, read: true} : m))} 
+                onReadMessages={(u) => setAllMessages(prev => prev.map(m => (m.recipient === currentUser!.username && m.sender === u) ? {...m, read: true} : m))} 
                 onNavigateToProfile={(u) => {setViewingUsername(u); setActiveSection('Profile');}} 
                 onReactToMessage={handleMessageReaction} 
+                onViolation={handleViolation}
               />
             )}
             {activeSection === 'Notifications' && (
               <NotificationsSection 
-                notifications={notifications.filter(n => n.recipient === currentUser.username)} 
+                notifications={notifications.filter(n => n.recipient === currentUser!.username)} 
                 isDarkMode={isDarkMode} 
-                onMarkRead={() => setNotifications(notifications.map(n => n.recipient === currentUser.username ? {...n, read: true} : n))} 
+                onMarkRead={() => setNotifications(notifications.map(n => n.recipient === currentUser!.username ? {...n, read: true} : n))} 
               />
             )}
             {activeSection === 'Profile' && profileToView && (
@@ -423,9 +520,9 @@ const App: React.FC = () => {
                 user={profileToView} 
                 allPosts={allPosts} 
                 isDarkMode={isDarkMode} 
-                currentUser={currentUser} 
+                currentUser={currentUser!} 
                 onEditProfile={(dn, un, pp, ti, bp, pc, bi) => { 
-                  setCurrentUser({...currentUser, displayName: dn, username: un, profilePic: pp, title: ti, profileColor: pc, bio: bi}); 
+                  setCurrentUser({...currentUser!, displayName: dn, username: un, profilePic: pp, title: ti, profileColor: pc, bio: bi}); 
                   setViewingUsername(un); 
                 }} 
                 onBlock={handleBlock} 
@@ -436,9 +533,9 @@ const App: React.FC = () => {
               <SettingsSection 
                 isDarkMode={isDarkMode} 
                 onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} 
-                onLogout={() => {localStorage.removeItem('mooderia_user'); setCurrentUser(null);}} 
-                user={currentUser} 
-                onUnblock={(u) => setCurrentUser({...currentUser, blockedUsers: currentUser.blockedUsers.filter(b => b !== u)})} 
+                onLogout={handleLogout} 
+                user={currentUser!} 
+                onUnblock={(u) => setCurrentUser({...currentUser!, blockedUsers: currentUser!.blockedUsers.filter(b => b !== u)})} 
               />
             )}
           </motion.div>

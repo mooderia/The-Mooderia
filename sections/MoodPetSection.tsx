@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../types';
 import { 
   Coins, Trophy, Heart, Timer, Sparkles, Star, Moon, DollarSign, PenTool, 
-  Gamepad2, Calculator, Share2, Target, Brain, Dices, Keyboard, X, Edit2, Zap, Clock
+  Gamepad2, Calculator, Share2, Target, Brain, Dices, Keyboard, X, Edit2, Zap, Clock, Info
 } from 'lucide-react';
 import { getExpNeeded } from '../constants';
 
@@ -44,7 +44,19 @@ const SLEEP_MODES = [
   { id: 'deep', name: 'Deep Stasis', emoji: '💤', rest: 100, cost: 120, duration: 480 },
 ];
 
-const RIDDLE_WORDS = ['STREAK', 'CITIZEN', 'MOODERIA', 'GUARDIAN', 'COSMIC', 'NEURAL', 'SIGNAL', 'FREQUENCY'];
+// SIMPLIFIED WORDS AND CLEARER HINTS
+const RIDDLE_WORDS = [
+  { word: 'HAPPY', hint: 'The feeling of pure joy.' },
+  { word: 'SMILE', hint: 'The curve on your face when glad.' },
+  { word: 'HEART', hint: 'The symbol of love and sync.' },
+  { word: 'WATER', hint: 'Your pet needs this to drink.' },
+  { word: 'CITY', hint: 'A large town like Mooderia.' },
+  { word: 'GAMES', hint: 'Fun activities in the Arcade.' },
+  { word: 'SLEEP', hint: 'What you do to recharge energy.' },
+  { word: 'COINS', hint: 'The currency used for shopping.' },
+  { word: 'LEVEL', hint: 'Your pet rank goes up this.' },
+  { word: 'STARS', hint: 'They shine in the night sky.' },
+];
 
 const Confetti = () => (
   <div className="absolute inset-0 pointer-events-none overflow-hidden z-[260]">
@@ -92,7 +104,7 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
   const [mathProb, setMathProb] = useState({ q: '', a: 0 });
   const [mathInput, setMathInput] = useState('');
   const [wheelSpinning, setWheelSpinning] = useState(false);
-  const [riddleWord, setRiddleWord] = useState({ scrambled: '', original: '' });
+  const [riddleWord, setRiddleWord] = useState({ scrambled: '', original: '', hint: '' });
 
   // Memory Game State
   const [memoryCards, setMemoryCards] = useState<{ emoji: string, id: number, flipped: boolean, matched: boolean }[]>([]);
@@ -134,9 +146,16 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
   };
 
   const genRiddle = () => {
-    const original = RIDDLE_WORDS[Math.floor(Math.random() * RIDDLE_WORDS.length)];
-    const scrambled = original.split('').sort(() => 0.5 - Math.random()).join('');
-    setRiddleWord({ scrambled, original });
+    const item = RIDDLE_WORDS[Math.floor(Math.random() * RIDDLE_WORDS.length)];
+    const original = item.word;
+    
+    let scrambled = '';
+    // Ensure the word is actually scrambled
+    do {
+      scrambled = original.split('').sort(() => 0.5 - Math.random()).join('');
+    } while (scrambled === original);
+
+    setRiddleWord({ scrambled, original, hint: item.hint });
     setMathInput('');
   };
 
@@ -430,7 +449,33 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
                              ))}
                            </div>
                          )}
-                         {gameMode === 'riddle' && <div className="space-y-8 w-full"><p className="text-4xl md:text-7xl font-black italic tracking-widest uppercase leading-none">{riddleWord.scrambled}</p><input type="text" autoFocus value={mathInput} onChange={e => { setMathInput(e.target.value.toUpperCase()); if(e.target.value.toUpperCase() === riddleWord.original) { setTapScore(s=>s+1); genRiddle(); } }} className="w-full max-w-sm p-6 rounded-3xl bg-white text-slate-900 font-black text-2xl text-center outline-none shadow-xl uppercase border-4 border-black/5" /></div>}
+                         {gameMode === 'riddle' && (
+                           <div className="space-y-6 w-full flex flex-col items-center">
+                             <p className="text-4xl md:text-7xl font-black italic tracking-[0.2em] uppercase leading-none mb-2">{riddleWord.scrambled}</p>
+                             <div className="flex items-center gap-3 bg-black/30 border border-white/10 px-6 py-3 rounded-2xl shadow-inner max-w-sm">
+                               <div className="bg-white/20 p-2 rounded-lg text-white"><Info size={16} /></div>
+                               <div className="text-left">
+                                 <p className="text-[9px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Metropolis Hint</p>
+                                 <p className="text-xs font-bold italic">"{riddleWord.hint}"</p>
+                               </div>
+                             </div>
+                             <input 
+                              type="text" 
+                              autoFocus 
+                              value={mathInput} 
+                              onChange={e => { 
+                                const val = e.target.value.toUpperCase();
+                                setMathInput(val); 
+                                // AUTO-ADVANCE ON CORRECT WORD
+                                if(val === riddleWord.original) { 
+                                  setTapScore(s=>s+1); 
+                                  genRiddle(); 
+                                } 
+                              }} 
+                              className="w-full max-w-sm p-6 rounded-3xl bg-white text-slate-900 font-black text-2xl text-center outline-none shadow-xl uppercase border-4 border-black/5" 
+                             />
+                           </div>
+                         )}
                        </div>
                        <p className="mt-8 opacity-40 font-black uppercase tracking-widest text-[10px] italic">NEURAL INTERFACE ACTIVE</p>
                     </div>

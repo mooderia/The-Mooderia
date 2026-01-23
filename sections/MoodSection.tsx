@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Send, Sparkles, Brain, Clock, Globe, Users, Trophy, MessageSquare, Repeat, Reply } from 'lucide-react';
+import { Heart, Send, Sparkles, Brain, Clock, Globe, Users, Trophy, MessageSquare, Repeat, Reply, ShieldAlert } from 'lucide-react';
 import { User, Post, Comment } from '../types';
 import MoodPetSection from './MoodPetSection';
 import { STREAK_BADGES } from '../constants';
+import { checkContentSafety } from '../services/geminiService';
 
 interface MoodSectionProps {
   user: User;
@@ -19,13 +20,15 @@ interface MoodSectionProps {
   isDarkMode: boolean;
   onNavigateToProfile: (username: string) => void;
   onUpdatePet: (hunger: number, thirst: number, rest: number, coins: number, exp?: number, sleepUntil?: number | null, newEmoji?: string, markChosen?: boolean, newName?: string, gameCooldownId?: string) => void;
+  onViolation: (reason: string) => void;
 }
 
-const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart, onComment, onCommentInteraction, onRepost, onFollow, onBlock, isDarkMode, onNavigateToProfile, onUpdatePet }) => {
+const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart, onComment, onCommentInteraction, onRepost, onFollow, onBlock, isDarkMode, onNavigateToProfile, onUpdatePet, onViolation }) => {
   const [subTab, setSubTab] = useState<'Express' | 'Teller' | 'Scan' | 'Mood Pet'>('Express');
   const [postContent, setPostContent] = useState('');
   const [feedFilter, setFeedFilter] = useState<'Global' | 'Circle'>('Global');
   const [postVisibility, setPostVisibility] = useState<'global' | 'circle'>('global');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
   
   const [tellerQuestion, setTellerQuestion] = useState('');
   const [tellerResponse, setTellerResponse] = useState('');
@@ -58,10 +61,21 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
 
   const earnedBadges = useMemo(() => STREAK_BADGES.filter(b => user.moodStreak >= b.threshold), [user.moodStreak]);
 
-  const handlePost = () => {
-    if (!postContent.trim()) return;
+  const handlePost = async () => {
+    if (!postContent.trim() || isBroadcasting) return;
+    setIsBroadcasting(true);
+    
+    // Safety Check by Mooderia Police Force
+    const safety = await checkContentSafety(postContent);
+    if (safety.isInappropriate) {
+      onViolation(safety.reason);
+      setIsBroadcasting(false);
+      return;
+    }
+
     onPost(postContent, postVisibility);
     setPostContent('');
+    setIsBroadcasting(false);
   };
 
   const handleAddComment = (postId: string) => {
@@ -220,13 +234,26 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
           {subTab === 'Express' && (
             <motion.div key="express" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className={`p-6 md:p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} border-4 border-black/5 shadow-xl`}>
-                <textarea value={postContent} onChange={(e) => setPostContent(e.target.value)} placeholder={postVisibility === 'global' ? "Transmit a global frequency..." : "Whisper to your circle..."} className={`w-full ${isDarkMode ? 'bg-slate-800 text-white' : 'bg-gray-50 text-slate-900'} p-6 rounded-3xl border-2 border-black/5 focus:border-custom outline-none font-bold text-lg shadow-inner min-h-[120px]`} />
+                <textarea 
+                  value={postContent} 
+                  onChange={(e) => setPostContent(e.target.value)} 
+                  disabled={isBroadcasting}
+                  placeholder={isBroadcasting ? "Scanning Signal..." : (postVisibility === 'global' ? "Transmit a global frequency..." : "Whisper to your circle...")} 
+                  className={`w-full ${isDarkMode ? 'bg-slate-800 text-white' : 'bg-gray-50 text-slate-900'} p-6 rounded-3xl border-2 border-black/5 focus:border-custom outline-none font-bold text-lg shadow-inner min-h-[120px]`} 
+                />
                 <div className="flex flex-wrap justify-between items-center mt-6 gap-4">
                   <div className="flex gap-2 bg-black/5 p-1.5 rounded-2xl">
                     <button onClick={() => setPostVisibility('global')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${postVisibility === 'global' ? 'bg-custom text-white' : 'opacity-40'}`}><Globe size={14}/> GLOBAL</button>
                     <button onClick={() => setPostVisibility('circle')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${postVisibility === 'circle' ? 'bg-custom text-white' : 'opacity-40'}`}><Users size={14}/> CIRCLE</button>
                   </div>
-                  <button onClick={handlePost} className="kahoot-button-custom px-8 py-4 text-white rounded-2xl font-black text-xs flex items-center gap-2 active:scale-95 transition-transform"><Send size={18} /> BROADCAST</button>
+                  <button 
+                    onClick={handlePost} 
+                    disabled={isBroadcasting}
+                    className="kahoot-button-custom px-8 py-4 text-white rounded-2xl font-black text-xs flex items-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    {isBroadcasting ? <Clock size={18} className="animate-spin" /> : <Send size={18} />} 
+                    {isBroadcasting ? 'SCANNIG...' : 'BROADCAST'}
+                  </button>
                 </div>
               </div>
 

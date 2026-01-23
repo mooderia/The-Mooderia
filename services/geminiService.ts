@@ -61,3 +61,28 @@ export const getLovePrediction = async (sign1: string, sign2: string) => {
     return { percentage: 50, reason: "The romantic frequencies are currently experiencing static." };
   }
 }
+
+export const checkContentSafety = async (text: string) => {
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Analyze the following text for inappropriate language, hate speech, severe insults, or harassment: "${text}". Return a JSON object with 'isInappropriate' (boolean) and 'reason' (string, keep it short).`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            isInappropriate: { type: Type.BOOLEAN },
+            reason: { type: Type.STRING }
+          },
+          required: ['isInappropriate', 'reason']
+        }
+      }
+    });
+    return JSON.parse(response.text.trim());
+  } catch (error) {
+    console.error("Safety Check Error:", error);
+    return { isInappropriate: false, reason: "" }; // Fail open for UX, but log error
+  }
+};

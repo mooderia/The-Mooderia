@@ -42,6 +42,9 @@ export interface User {
   petLastUpdate: number; // timestamp
   petSleepUntil: number | null; // timestamp
   gameCooldowns: Record<string, number>; // gameId -> timestamp of when it can be played again
+  // Security / Moderation
+  warnings: number;
+  isBanned: boolean;
 }
 
 export interface MessageReaction {
@@ -78,7 +81,7 @@ export interface Message {
 
 export interface Notification {
   id: string;
-  type: 'heart' | 'comment' | 'repost' | 'tier' | 'achievement' | 'follow' | 'comment_heart' | 'reply' | 'reaction';
+  type: 'heart' | 'comment' | 'repost' | 'tier' | 'achievement' | 'follow' | 'comment_heart' | 'reply' | 'reaction' | 'warning';
   fromUser: string;
   recipient: string; 
   postId?: string;
