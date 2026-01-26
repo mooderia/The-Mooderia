@@ -49,15 +49,15 @@ export interface User {
 
 export interface MessageReaction {
   emoji: string;
-  users: string[]; // List of usernames who used this emoji
+  users: string[]; 
 }
 
 export interface Group {
   id: string;
   name: string;
-  photo?: string; // Emoji or dataURL
-  members: string[]; // List of usernames
-  nicknames: Record<string, string>; // username -> nickname mapping
+  photo?: string; 
+  members: string[]; 
+  nicknames: Record<string, string>; 
   owner: string;
   createdAt: number;
 }
@@ -65,7 +65,7 @@ export interface Group {
 export interface Message {
   id: string;
   sender: string;
-  recipient: string; // For DMs, this is the username. For Groups, this is the groupId.
+  recipient: string; 
   text: string;
   timestamp: number;
   read: boolean;
@@ -110,7 +110,7 @@ export interface Comment {
   replies: Comment[];
 }
 
-export type Section = 'Home' | 'Mood' | 'Zodiac' | 'CityHall' | 'Profile' | 'Settings' | 'Notifications';
+export type Section = 'Home' | 'Mood' | 'Zodiac' | 'CityHall' | 'Profile' | 'Settings' | 'Notifications' | 'Psychiatrist';
 
 export interface ZodiacInfo {
   name: string;

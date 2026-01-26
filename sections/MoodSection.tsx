@@ -1,10 +1,10 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Send, Sparkles, Brain, Clock, Globe, Users, Trophy, MessageSquare, Repeat, Reply, ShieldAlert, Activity, Stethoscope, Trash2, Edit, X } from 'lucide-react';
+import { Heart, Send, Sparkles, Brain, Clock, Globe, Users, Trophy, MessageSquare, Repeat, Reply, ShieldAlert, Activity, Stethoscope, Trash2, Edit, X, Lock } from 'lucide-react';
 import { User, Post, Comment } from '../types';
 import MoodPetSection from './MoodPetSection';
 import { STREAK_BADGES } from '../constants';
-import { checkContentSafety } from '../services/geminiService';
 
 interface MoodSectionProps {
   user: User;
@@ -22,9 +22,10 @@ interface MoodSectionProps {
   onNavigateToProfile: (username: string) => void;
   onUpdatePet: (hunger: number, thirst: number, rest: number, coins: number, exp?: number, sleepUntil?: number | null, newEmoji?: string, markChosen?: boolean, newName?: string, gameCooldownId?: string) => void;
   onViolation: (reason: string) => void;
+  isGuest?: boolean;
 }
 
-const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart, onDeletePost, onEditPost, onComment, onCommentInteraction, onRepost, onFollow, onBlock, isDarkMode, onNavigateToProfile, onUpdatePet, onViolation }) => {
+const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart, onDeletePost, onEditPost, onComment, onCommentInteraction, onRepost, onFollow, onBlock, isDarkMode, onNavigateToProfile, onUpdatePet, onViolation, isGuest = false }) => {
   const [subTab, setSubTab] = useState<'Express' | 'Teller' | 'Scan' | 'Mood Pet'>('Express');
   const [postContent, setPostContent] = useState('');
   const [feedFilter, setFeedFilter] = useState<'Global' | 'Circle'>('Global');
@@ -45,39 +46,20 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
   const [replyingTo, setReplyingTo] = useState<{ postId: string, commentId: string } | null>(null);
   const [replyContent, setReplyContent] = useState('');
 
-  // Editing state
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState('');
 
-  // View Likers Modal
   const [likersModalPost, setLikersModalPost] = useState<Post | null>(null);
 
   const filteredPosts = useMemo(() => {
-    const allUsers: User[] = JSON.parse(localStorage.getItem('mooderia_all_users') || '[]');
-    const usersWhoBlockedMe = allUsers.filter(u => u.blockedUsers.includes(user.username)).map(u => u.username);
-    
-    let result = posts.filter(p => 
-      !user.blockedUsers.includes(p.author) && 
-      !usersWhoBlockedMe.includes(p.author)
-    );
-
-    if (feedFilter === 'Global') {
-      return result.filter(p => p.visibility === 'global');
-    }
+    let result = posts.filter(p => !user.blockedUsers.includes(p.author));
+    if (feedFilter === 'Global') return result.filter(p => p.visibility === 'global');
     return result.filter(p => p.visibility === 'circle' && (user.following.includes(p.author) || p.author === user.username));
   }, [posts, feedFilter, user.following, user.username, user.blockedUsers]);
 
   const handlePost = async () => {
-    if (!postContent.trim() || isBroadcasting) return;
+    if (isGuest || !postContent.trim() || isBroadcasting) return;
     setIsBroadcasting(true);
-    
-    const safety = await checkContentSafety(postContent);
-    if (safety.isInappropriate) {
-      onViolation(safety.reason);
-      setIsBroadcasting(false);
-      return;
-    }
-
     onPost(postContent, postVisibility);
     setPostContent('');
     setIsBroadcasting(false);
@@ -90,16 +72,12 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
 
   const handleSaveEdit = async () => {
     if (!editingPostId || !editBuffer.trim()) return;
-    const safety = await checkContentSafety(editBuffer);
-    if (safety.isInappropriate) {
-      onViolation(safety.reason);
-      return;
-    }
     onEditPost(editingPostId, editBuffer);
     setEditingPostId(null);
   };
 
   const handleAddComment = (postId: string) => {
+    if (isGuest) return;
     const text = commentInputs[postId];
     if (!text?.trim()) return;
     onComment(postId, text);
@@ -107,7 +85,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
   };
 
   const handleReply = (postId: string, commentId: string) => {
-    if (!replyContent.trim()) return;
+    if (isGuest || !replyContent.trim()) return;
     onCommentInteraction(postId, commentId, 'reply', replyContent);
     setReplyContent('');
     setReplyingTo(null);
@@ -124,17 +102,18 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
           </div>
           <p className="text-sm font-bold opacity-80 mt-1 leading-relaxed">"{comment.text}"</p>
           <div className="flex items-center gap-4 mt-2">
-            <button onClick={() => onCommentInteraction(postId, comment.id, 'heart')} className="flex items-center gap-1 text-[9px] font-black uppercase text-custom transition-transform active:scale-95"><Heart size={12} fill={comment.hearts > 0 ? "currentColor" : "none"} /> {comment.hearts} Sync</button>
+            <button disabled={isGuest} onClick={() => onCommentInteraction(postId, comment.id, 'heart')} className={`flex items-center gap-1 text-[9px] font-black uppercase text-custom transition-transform active:scale-95 ${isGuest ? 'opacity-30' : ''}`}><Heart size={12} fill={comment.hearts > 0 ? "currentColor" : "none"} /> {comment.hearts} Sync</button>
             <button 
+              disabled={isGuest}
               onClick={() => setReplyingTo(replyingTo?.commentId === comment.id ? null : { postId, commentId: comment.id })} 
-              className="flex items-center gap-1 text-[9px] font-black uppercase text-blue-500 transition-transform active:scale-95"
+              className={`flex items-center gap-1 text-[9px] font-black uppercase text-blue-500 transition-transform active:scale-95 ${isGuest ? 'opacity-30' : ''}`}
             >
               <Reply size={12} /> Echo
             </button>
           </div>
           
           <AnimatePresence>
-            {replyingTo?.commentId === comment.id && (
+            {replyingTo?.commentId === comment.id && !isGuest && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-3 overflow-hidden">
                 <div className="flex gap-2">
                   <input 
@@ -231,29 +210,38 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
         <AnimatePresence mode="wait">
           {subTab === 'Express' && (
             <motion.div key="express" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto fading-scrollbar pr-2 space-y-6 pb-20">
-              <div className={`p-6 md:p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} border-4 border-black/5 shadow-xl`}>
-                <textarea 
-                  value={postContent} 
-                  onChange={(e) => setPostContent(e.target.value)} 
-                  disabled={isBroadcasting}
-                  placeholder={isBroadcasting ? "Scanning Signal..." : (postVisibility === 'global' ? "Transmit a global frequency..." : "Whisper to your circle...")} 
-                  className={`w-full ${isDarkMode ? 'bg-slate-800 text-white' : 'bg-gray-50 text-slate-900'} p-6 rounded-3xl border-2 border-black/5 focus:border-custom outline-none font-bold text-lg shadow-inner min-h-[120px]`} 
-                />
-                <div className="flex flex-wrap justify-between items-center mt-6 gap-4">
-                  <div className="flex gap-2 bg-black/5 p-1.5 rounded-2xl">
-                    <button onClick={() => setPostVisibility('global')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${postVisibility === 'global' ? 'bg-custom text-white' : 'opacity-40'}`}><Globe size={14}/> GLOBAL</button>
-                    <button onClick={() => setPostVisibility('circle')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${postVisibility === 'circle' ? 'bg-custom text-white' : 'opacity-40'}`}><Users size={14}/> CIRCLE</button>
-                  </div>
-                  <button 
-                    onClick={handlePost} 
+              {!isGuest ? (
+                <div className={`p-6 md:p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} border-4 border-black/5 shadow-xl`}>
+                  <textarea 
+                    value={postContent} 
+                    onChange={(e) => setPostContent(e.target.value)} 
                     disabled={isBroadcasting}
-                    className="kahoot-button-custom px-8 py-4 text-white rounded-2xl font-black text-xs flex items-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
-                  >
-                    {isBroadcasting ? <Clock size={18} className="animate-spin" /> : <Send size={18} />} 
-                    {isBroadcasting ? 'SCANNIG...' : 'BROADCAST'}
-                  </button>
+                    placeholder={isBroadcasting ? "Sending Signal..." : (postVisibility === 'global' ? "Transmit a global frequency..." : "Whisper to your circle...")} 
+                    className={`w-full ${isDarkMode ? 'bg-slate-800 text-white' : 'bg-gray-50 text-slate-900'} p-6 rounded-3xl border-2 border-black/5 focus:border-custom outline-none font-bold text-lg shadow-inner min-h-[120px]`} 
+                  />
+                  <div className="flex flex-wrap justify-between items-center mt-6 gap-4">
+                    <div className="flex gap-2 bg-black/5 p-1.5 rounded-2xl">
+                      <button onClick={() => setPostVisibility('global')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${postVisibility === 'global' ? 'bg-custom text-white' : 'opacity-40'}`}><Globe size={14}/> GLOBAL</button>
+                      <button onClick={() => setPostVisibility('circle')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${postVisibility === 'circle' ? 'bg-custom text-white' : 'opacity-40'}`}><Users size={14}/> CIRCLE</button>
+                    </div>
+                    <button 
+                      onClick={handlePost} 
+                      disabled={isBroadcasting}
+                      className="kahoot-button-custom px-8 py-4 text-white rounded-2xl font-black text-xs flex items-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {isBroadcasting ? <Clock size={18} className="animate-spin" /> : <Send size={18} />} 
+                      {isBroadcasting ? 'SENDING...' : 'BROADCAST'}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className={`p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-800' : 'bg-white'} border-4 border-dashed border-black/10 flex flex-col items-center justify-center text-center`}>
+                  <Lock size={40} className="mb-4 opacity-20" />
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-40 leading-relaxed max-w-xs">
+                    Sign in to transmit your frequencies to the metropolis.
+                  </p>
+                </div>
+              )}
 
               <div className="flex gap-2 bg-black/5 p-1 rounded-xl w-fit">
                 <button onClick={() => setFeedFilter('Global')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${feedFilter === 'Global' ? 'bg-white text-custom shadow-sm' : 'opacity-40'}`}>Metropolis Feed</button>
@@ -275,7 +263,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                             <p className="text-[9px] font-black opacity-30 uppercase tracking-widest flex items-center gap-1"><Clock size={10}/> {formatTime(post.timestamp)}</p>
                           </div>
                         </div>
-                        {isAuthor && (
+                        {isAuthor && !isGuest && (
                           <div className="flex gap-2">
                              <button onClick={() => handleStartEdit(post)} className="p-2 bg-black/5 hover:bg-black/10 rounded-xl transition-all text-blue-500"><Edit size={16}/></button>
                              <button onClick={() => onDeletePost(post.id)} className="p-2 bg-black/5 hover:bg-black/10 rounded-xl transition-all text-red-500"><Trash2 size={16}/></button>
@@ -283,7 +271,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                         )}
                       </div>
 
-                      {editingPostId === post.id ? (
+                      {editingPostId === post.id && !isGuest ? (
                         <div className="space-y-4 mb-6">
                            <textarea value={editBuffer} onChange={e => setEditBuffer(e.target.value)} className={`w-full p-4 rounded-2xl border-2 font-bold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100 text-slate-900'} outline-none focus:border-custom`} rows={3} />
                            <div className="flex gap-2">
@@ -300,7 +288,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
 
                       <div className="flex items-center gap-6 pt-4 border-t border-black/5">
                         <div className="flex items-center gap-1.5">
-                           <button onClick={() => onHeart(post.id)} className={`flex items-center gap-1.5 ${isLiked ? 'text-custom' : 'opacity-40'} font-black text-[10px] uppercase transition-all active:scale-95`}>
+                           <button disabled={isGuest} onClick={() => onHeart(post.id)} className={`flex items-center gap-1.5 ${isLiked ? 'text-custom' : 'opacity-40'} font-black text-[10px] uppercase transition-all active:scale-95 ${isGuest ? 'cursor-not-allowed' : ''}`}>
                              <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
                            </button>
                            <button onClick={() => setLikersModalPost(post)} className="text-custom font-black text-[10px] hover:underline transition-all">
@@ -308,24 +296,26 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                            </button>
                         </div>
                         <button onClick={() => setExpandedPostId(expandedPostId === post.id ? null : post.id)} className="flex items-center gap-1.5 text-blue-500 font-black text-[10px] uppercase"><MessageSquare size={16} /> {post.comments?.length || 0} ECHO</button>
-                        <button onClick={() => onRepost(post)} className="flex items-center gap-1.5 text-green-500 font-black text-[10px] uppercase transition-transform active:scale-95"><Repeat size={16} /> ECHO RE-SIGNAL</button>
+                        <button disabled={isGuest} onClick={() => onRepost(post)} className={`flex items-center gap-1.5 text-green-500 font-black text-[10px] uppercase transition-transform active:scale-95 ${isGuest ? 'opacity-30 cursor-not-allowed' : ''}`}><Repeat size={16} /> ECHO RE-SIGNAL</button>
                       </div>
 
                       <AnimatePresence>
                         {expandedPostId === post.id && (
                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                              <div className="pt-6 space-y-4">
-                                <div className="flex gap-2">
-                                  <input 
-                                    type="text" 
-                                    value={commentInputs[post.id] || ''} 
-                                    onChange={e => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                                    placeholder="Add an echo to this signal..." 
-                                    className={`flex-1 p-3 rounded-xl border-2 text-xs font-bold outline-none focus:border-custom ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100'}`}
-                                    onKeyPress={e => e.key === 'Enter' && handleAddComment(post.id)}
-                                  />
-                                  <button onClick={() => handleAddComment(post.id)} className="bg-custom text-white px-4 rounded-xl shadow-md transition-transform active:scale-95"><Send size={16} /></button>
-                                </div>
+                                {!isGuest && (
+                                  <div className="flex gap-2">
+                                    <input 
+                                      type="text" 
+                                      value={commentInputs[post.id] || ''} 
+                                      onChange={e => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                      placeholder="Add an echo to this signal..." 
+                                      className={`flex-1 p-3 rounded-xl border-2 text-xs font-bold outline-none focus:border-custom ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100'}`}
+                                      onKeyPress={e => e.key === 'Enter' && handleAddComment(post.id)}
+                                    />
+                                    <button onClick={() => handleAddComment(post.id)} className="bg-custom text-white px-4 rounded-xl shadow-md transition-transform active:scale-95"><Send size={16} /></button>
+                                  </div>
+                                )}
 
                                 <div className="space-y-4 max-h-[400px] overflow-y-auto fading-scrollbar pr-2">
                                   {post.comments?.length > 0 ? (
@@ -399,7 +389,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
 
           {subTab === 'Mood Pet' && (
             <motion.div key="pet" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto fading-scrollbar pr-2 pb-20">
-               <MoodPetSection user={user} isDarkMode={isDarkMode} onUpdate={onUpdatePet} onPost={onPost} />
+               <MoodPetSection user={user} isDarkMode={isDarkMode} onUpdate={onUpdatePet} onPost={onPost} isGuest={isGuest} />
             </motion.div>
           )}
         </AnimatePresence>

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../types';
 import { 
   Coins, Trophy, Heart, Timer, Sparkles, Star, Moon, DollarSign, PenTool, 
-  Gamepad2, Calculator, Share2, Target, Brain, Dices, Keyboard, X, Edit2, Zap, Clock, Info
+  Gamepad2, Calculator, Share2, Target, Brain, Dices, Keyboard, X, Edit2, Zap, Clock, Info, Lock
 } from 'lucide-react';
 import { getExpNeeded } from '../constants';
 
@@ -13,6 +13,7 @@ interface MoodPetSectionProps {
   isDarkMode: boolean;
   onUpdate: (hunger: number, thirst: number, rest: number, coins: number, exp?: number, sleepUntil?: number | null, newEmoji?: string, markChosen?: boolean, newName?: string, gameCooldownId?: string) => void;
   onPost: (content: string, visibility: 'global' | 'circle') => void;
+  isGuest?: boolean;
 }
 
 const RENAME_COST = 50;
@@ -44,7 +45,6 @@ const SLEEP_MODES = [
   { id: 'deep', name: 'Deep Stasis', emoji: '💤', rest: 100, cost: 120, duration: 480 },
 ];
 
-// SIMPLIFIED WORDS AND CLEARER HINTS
 const RIDDLE_WORDS = [
   { word: 'HAPPY', hint: 'The feeling of pure joy.' },
   { word: 'SMILE', hint: 'The curve on your face when glad.' },
@@ -88,7 +88,7 @@ const Confetti = () => (
   </div>
 );
 
-const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpdate, onPost }) => {
+const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpdate, onPost, isGuest = false }) => {
   const [activeTab, setActiveTab] = useState<'Care' | 'Shop' | 'Arcade'>('Care');
   const [creationStep, setCreationStep] = useState(1);
   const [tempName, setTempName] = useState('');
@@ -106,7 +106,6 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
   const [wheelSpinning, setWheelSpinning] = useState(false);
   const [riddleWord, setRiddleWord] = useState({ scrambled: '', original: '', hint: '' });
 
-  // Memory Game State
   const [memoryCards, setMemoryCards] = useState<{ emoji: string, id: number, flipped: boolean, matched: boolean }[]>([]);
   const [flippedIndices, setFlippedIndices] = useState<number[]>([]);
 
@@ -148,13 +147,10 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
   const genRiddle = () => {
     const item = RIDDLE_WORDS[Math.floor(Math.random() * RIDDLE_WORDS.length)];
     const original = item.word;
-    
     let scrambled = '';
-    // Ensure the word is actually scrambled
     do {
       scrambled = original.split('').sort(() => 0.5 - Math.random()).join('');
     } while (scrambled === original);
-
     setRiddleWord({ scrambled, original, hint: item.hint });
     setMathInput('');
   };
@@ -184,14 +180,11 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
 
   const handleMemoryClick = (idx: number) => {
     if (memoryCards[idx].flipped || memoryCards[idx].matched || flippedIndices.length === 2) return;
-    
     const newCards = [...memoryCards];
     newCards[idx].flipped = true;
     setMemoryCards(newCards);
-    
     const newFlipped = [...flippedIndices, idx];
     setFlippedIndices(newFlipped);
-
     if (newFlipped.length === 2) {
       const [first, second] = newFlipped;
       if (newCards[first].emoji === newCards[second].emoji) {
@@ -218,12 +211,10 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
   const handleFinishGame = (rewards?: { coins: number, exp: number }) => {
     let coins = rewards?.coins || 0;
     let exp = rewards?.exp || 0;
-
     if (gameMode === 'clicker') { coins = Math.min(80, tapScore * 3); exp = tapScore * 6; }
     if (gameMode === 'math') { coins = Math.min(100, tapScore * 10); exp = tapScore * 20; }
     if (gameMode === 'riddle') { coins = Math.min(150, tapScore * 25); exp = tapScore * 50; }
     if (gameMode === 'memory') { coins = Math.min(150, tapScore * 30); exp = tapScore * 60; }
-    
     setGameResult({ coins, exp });
     onUpdate(-12, -10, -8, coins, exp, null, undefined, undefined, undefined, gameMode!);
   };
@@ -241,6 +232,7 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
   };
 
   const handleShareLevel = () => {
+    if (isGuest) return;
     if (levelUpModal) {
       onPost(`🚀 ACHIEVEMENT UNLOCKED: My Guardian ${user.petName} just reached Sync Level ${levelUpModal}! The metropolis connection is stronger than ever! ✨ #MooderiaGuardian #LevelUp`, 'global');
       setLevelUpModal(null);
@@ -315,7 +307,6 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Cinematic Achievement Pop-up */}
       <AnimatePresence>
         {levelUpModal && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/95 backdrop-blur-3xl overflow-hidden">
@@ -331,7 +322,13 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mt-4">The Metropolis recognizes your bond with <span className="text-slate-900">{user.petName}</span>.</motion.p>
               </div>
               <div className="flex flex-col gap-4 mt-12">
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleShareLevel} className="kahoot-button-custom flex items-center justify-center gap-3 py-6 rounded-[2.5rem] text-white font-black uppercase text-lg shadow-xl"><Share2 size={24} /> Broadcast Signal</motion.button>
+                {!isGuest ? (
+                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleShareLevel} className="kahoot-button-custom flex items-center justify-center gap-3 py-6 rounded-[2.5rem] text-white font-black uppercase text-lg shadow-xl"><Share2 size={24} /> Broadcast Signal</motion.button>
+                ) : (
+                  <div className="py-6 rounded-[2.5rem] bg-black/5 border-2 border-dashed border-black/10 flex items-center justify-center gap-2 opacity-40">
+                    <Lock size={16} /><span className="text-[10px] font-black uppercase">Broadcast Locked</span>
+                  </div>
+                )}
                 <button onClick={() => setLevelUpModal(null)} className="py-2 text-[11px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-900 transition-colors">Return to Metropolis</button>
               </div>
             </motion.div>
@@ -459,21 +456,7 @@ const MoodPetSection: React.FC<MoodPetSectionProps> = ({ user, isDarkMode, onUpd
                                  <p className="text-xs font-bold italic">"{riddleWord.hint}"</p>
                                </div>
                              </div>
-                             <input 
-                              type="text" 
-                              autoFocus 
-                              value={mathInput} 
-                              onChange={e => { 
-                                const val = e.target.value.toUpperCase();
-                                setMathInput(val); 
-                                // AUTO-ADVANCE ON CORRECT WORD
-                                if(val === riddleWord.original) { 
-                                  setTapScore(s=>s+1); 
-                                  genRiddle(); 
-                                } 
-                              }} 
-                              className="w-full max-w-sm p-6 rounded-3xl bg-white text-slate-900 font-black text-2xl text-center outline-none shadow-xl uppercase border-4 border-black/5" 
-                             />
+                             <input type="text" autoFocus value={mathInput} onChange={e => { const val = e.target.value.toUpperCase(); setMathInput(val); if(val === riddleWord.original) { setTapScore(s=>s+1); genRiddle(); } }} className="w-full max-w-sm p-6 rounded-3xl bg-white text-slate-900 font-black text-2xl text-center outline-none shadow-xl uppercase border-4 border-black/5" />
                            </div>
                          )}
                        </div>

@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Users, Search, MessageSquare, ArrowLeft, ShieldCheck, Check, CheckCheck, Clock, Smile, Plus, X, Reply, Radio } from 'lucide-react';
+import { Send, Users, Search, MessageSquare, ArrowLeft, ShieldCheck, Check, CheckCheck, Clock, Smile, Plus, X, Reply, Radio, Rocket, MessageCircle, Star, Ghost, Zap, Coffee, Music, Palette } from 'lucide-react';
 import { User, Message, MessageReaction, Group } from '../types';
-import { checkContentSafety } from '../services/geminiService';
 
 interface CityHallSectionProps {
   isDarkMode: boolean;
@@ -20,26 +19,24 @@ interface CityHallSectionProps {
   onViolation: (reason: string) => void;
 }
 
-const REACTION_EMOJIS = ['❤️', '😂', '😮', '😢', '🔥', '👍'];
+const GROUP_ICONS = ['🚀', '💬', '✨', '👻', '⚡', '☕', '🎵', '🎨', '🔥', '🌈', '🛸', '🛡️'];
 
 const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUser, allUsers, messages, groups, onSendMessage, onReadMessages, onGroupUpdate, onGroupCreate, onNavigateToProfile, onReactToMessage, onViolation }) => {
   const [input, setInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCitizen, setSelectedCitizen] = useState<{ username: string, isGroup?: boolean } | null>(null);
-  const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
-  const [viewingReacters, setViewingReacters] = useState<MessageReaction | null>(null);
-  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isSending, setIsSending] = useState(false);
+  
+  // Group creation state
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [selectedGroupIcon, setSelectedGroupIcon] = useState('🚀');
   const [selectedForGroup, setSelectedForGroup] = useState<string[]>([]);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // Helper to get the most up-to-date user data
   const getUserByUsername = (username: string) => allUsers.find(u => u.username === username);
-
-  // Helper to get group data
   const getGroupById = (id: string) => groups.find(g => g.id === id);
 
   const chats = useMemo(() => {
@@ -48,12 +45,7 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
 
     groups.forEach(g => {
       if (g.members.includes(currentUser.username)) {
-        list.push({ 
-          username: g.id, 
-          displayName: g.name, 
-          isGroup: true, 
-          profilePic: g.photo || '🚀'
-        });
+        list.push({ username: g.id, displayName: g.name, isGroup: true, profilePic: g.photo || '🚀' });
       }
     });
 
@@ -76,118 +68,54 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
     if (!selectedCitizen) return null;
     if (selectedCitizen.isGroup) {
       const g = getGroupById(selectedCitizen.username);
-      return {
-        username: selectedCitizen.username,
-        displayName: g?.name || 'Group',
-        profilePic: g?.photo || '🚀',
-        isGroup: true,
-        recipients: g?.members
-      };
+      return { username: selectedCitizen.username, displayName: g?.name || 'Group', profilePic: g?.photo || '🚀', isGroup: true, recipients: g?.members };
     } else {
       const u = getUserByUsername(selectedCitizen.username);
-      return {
-        username: selectedCitizen.username,
-        displayName: u?.displayName || selectedCitizen.username,
-        profilePic: u?.profilePic,
-        isGroup: false
-      };
+      return { username: selectedCitizen.username, displayName: u?.displayName || selectedCitizen.username, profilePic: u?.profilePic, isGroup: false };
     }
   }, [selectedCitizen, allUsers, groups]);
 
   const chatMessages = useMemo(() => {
     if (!selectedCitizen) return [];
-    if (selectedCitizen.isGroup) {
-      return messages.filter(m => m.isGroup && m.recipient === selectedCitizen.username).sort((a, b) => a.timestamp - b.timestamp);
-    }
-    return messages.filter(m => 
-      !m.isGroup &&
-      ((m.sender === currentUser.username && m.recipient === selectedCitizen.username) ||
-      (m.sender === selectedCitizen.username && m.recipient === currentUser.username))
-    ).sort((a, b) => a.timestamp - b.timestamp);
+    if (selectedCitizen.isGroup) return messages.filter(m => m.isGroup && m.recipient === selectedCitizen.username).sort((a, b) => a.timestamp - b.timestamp);
+    return messages.filter(m => !m.isGroup && ((m.sender === currentUser.username && m.recipient === selectedCitizen.username) || (m.sender === selectedCitizen.username && m.recipient === currentUser.username))).sort((a, b) => a.timestamp - b.timestamp);
   }, [messages, selectedCitizen, currentUser.username]);
 
   useEffect(() => {
     if (selectedCitizen && !selectedCitizen.isGroup) onReadMessages(selectedCitizen.username);
-    
-    // Smooth scroll to bottom on initial load and when switching
-    setTimeout(() => {
-        chatScrollRef.current?.scrollTo({
-            top: chatScrollRef.current.scrollHeight,
-            behavior: 'smooth'
-        });
-    }, 50);
+    setTimeout(() => { chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' }); }, 100);
   }, [selectedCitizen?.username]);
-
-  useEffect(() => {
-    if (chatMessages.length > 0) {
-        chatScrollRef.current?.scrollTo({
-            top: chatScrollRef.current.scrollHeight,
-            behavior: 'smooth'
-        });
-    }
-  }, [chatMessages.length]);
 
   const handleSend = async () => {
     if (!input.trim() || !activeChatInfo || isSending) return;
     setIsSending(true);
-    const safety = await checkContentSafety(input);
-    if (safety.isInappropriate) {
-      onViolation(safety.reason);
-      setIsSending(false);
-      return;
-    }
-    onSendMessage(activeChatInfo.username, input, { 
-      isGroup: activeChatInfo.isGroup, 
-      recipients: activeChatInfo.recipients, 
-      groupName: activeChatInfo.displayName,
-      replyToId: replyingTo?.id,
-      replyToText: replyingTo?.text,
-      replyToSender: replyingTo?.sender
-    });
+    onSendMessage(activeChatInfo.username, input, { isGroup: activeChatInfo.isGroup, recipients: activeChatInfo.recipients, groupName: activeChatInfo.displayName });
     setInput('');
-    setReplyingTo(null);
     setIsSending(false);
   };
 
-  const handleStartCreateGroup = () => {
-    setGroupName('');
-    setSelectedForGroup([]);
-    setIsCreatingGroup(true);
-  };
-
   const handleCreateGroup = () => {
-    if (!groupName.trim() || selectedForGroup.length < 1) return;
+    if (!groupName.trim() || selectedForGroup.length < 2) return;
     const groupId = 'group_' + Math.random().toString(36).substr(2, 9);
     const members = [...selectedForGroup, currentUser.username];
-    const newGroup: Group = {
-      id: groupId,
-      name: groupName,
-      owner: currentUser.username,
-      members: members,
-      nicknames: {},
-      createdAt: Date.now(),
-      photo: '🚀'
-    };
+    const newGroup: Group = { id: groupId, name: groupName, owner: currentUser.username, members: members, nicknames: {}, createdAt: Date.now(), photo: selectedGroupIcon };
     onGroupCreate(newGroup);
-    onSendMessage(groupId, `CITIZEN TERMINAL: Group initialized.`, { isGroup: true, recipients: members, groupName, isSystem: true });
+    onSendMessage(groupId, `SYSTEM: Citizen network online. Members: ${members.join(', ')}.`, { isGroup: true, recipients: members, groupName, isSystem: true });
     setSelectedCitizen({ username: groupId, isGroup: true });
     setIsCreatingGroup(false);
+    setGroupName('');
+    setSelectedForGroup([]);
   };
 
-  const filteredChats = chats.filter(c => 
-    c.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = allUsers.filter(u => u.username !== currentUser.username && (u.username.toLowerCase().includes(userSearchTerm.toLowerCase()) || u.displayName.toLowerCase().includes(userSearchTerm.toLowerCase())));
 
-  const formatMessageTime = (ts: number) => {
-    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const isReadyToCreate = groupName.trim().length > 0 && selectedForGroup.length >= 2;
 
   return (
     <div className="flex flex-col h-full min-h-0 w-full relative">
       <div className="flex justify-between items-center mb-6 shrink-0 px-2">
         <h2 className={`text-3xl md:text-4xl font-black italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Citizen Hub</h2>
-        <button onClick={handleStartCreateGroup} className="kahoot-button-blue px-6 py-3 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 text-xs">
+        <button onClick={() => setIsCreatingGroup(true)} className="kahoot-button-blue px-6 py-3 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 text-xs">
           <Plus size={18} /> <span>NEW GROUP</span>
         </button>
       </div>
@@ -197,19 +125,18 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
         <div className={`w-full md:w-64 lg:w-80 border-r ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} flex flex-col ${selectedCitizen ? 'hidden md:flex' : 'flex'} min-h-0 h-full`}>
           <div className="p-4 border-b border-gray-100 dark:border-slate-800 shrink-0">
             <div className="relative">
-              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search frequency..." className={`w-full pl-10 pr-4 py-3 rounded-2xl text-[12px] font-black border-2 outline-none focus:border-blue-500 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-200 text-slate-900'}`} />
+              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search real citizens..." className={`w-full pl-10 pr-4 py-3 rounded-2xl text-[12px] font-black border-2 outline-none focus:border-blue-500 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`} />
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 opacity-30" size={16} />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto fading-scrollbar p-3 space-y-2 min-h-0 h-full">
-            {filteredChats.map(chat => (
+            {chats.filter(c => c.displayName.toLowerCase().includes(searchTerm.toLowerCase())).map(chat => (
               <button key={chat.username} onClick={() => setSelectedCitizen({ username: chat.username, isGroup: chat.isGroup })} className={`w-full p-4 rounded-[1.5rem] flex items-center gap-3 transition-all border-b-4 active:translate-y-0.5 active:border-b-2 ${selectedCitizen?.username === chat.username ? 'bg-blue-600 border-blue-800 text-white shadow-md' : 'hover:bg-black/5'}`}>
                 <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-slate-700 flex items-center justify-center font-black overflow-hidden shadow-sm shrink-0">
-                  {chat.profilePic ? <img src={chat.profilePic} className="w-full h-full object-cover" /> : chat.displayName[0]}
+                  {chat.isGroup ? <span className="text-xl">{chat.profilePic}</span> : (chat.profilePic ? <img src={chat.profilePic} className="w-full h-full object-cover" /> : chat.displayName[0])}
                 </div>
                 <div className="text-left flex-1 min-w-0">
                   <p className="font-black text-[12px] truncate uppercase tracking-tight">{chat.displayName}</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40">@{chat.username}</p>
                 </div>
               </button>
             ))}
@@ -225,167 +152,93 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
                   <button onClick={() => setSelectedCitizen(null)} className="md:hidden p-2 text-custom"><ArrowLeft size={24} /></button>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shadow-lg overflow-hidden border-2 border-white/20">
-                      {activeChatInfo.profilePic ? <img src={activeChatInfo.profilePic} className="w-full h-full object-cover" /> : activeChatInfo.displayName[0]}
+                      {activeChatInfo.isGroup ? <span className="text-xl">{activeChatInfo.profilePic}</span> : (activeChatInfo.profilePic ? <img src={activeChatInfo.profilePic} className="w-full h-full object-cover" /> : activeChatInfo.displayName[0])}
                     </div>
-                    <div className="text-left">
-                      <p className={`font-black text-sm uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{activeChatInfo.displayName}</p>
+                    <div>
+                      <p className="font-black text-sm uppercase italic tracking-tighter">{activeChatInfo.displayName}</p>
                       <p className="text-[10px] font-black uppercase tracking-widest opacity-30">@{activeChatInfo.username}</p>
                     </div>
                   </div>
                 </div>
-                {!activeChatInfo.isGroup && (
-                  <button onClick={() => onNavigateToProfile(activeChatInfo.username)} className="text-[10px] font-black uppercase tracking-widest text-custom hover:underline px-4">View ID</button>
-                )}
               </div>
 
-              {/* Message List */}
-              <div 
-                ref={chatScrollRef}
-                className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 fading-scrollbar min-h-0 h-full bg-slate-50/30 dark:bg-slate-900/10"
-              >
-                {chatMessages.length > 0 ? chatMessages.map(m => {
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 fading-scrollbar min-h-0 h-full">
+                {chatMessages.map(m => {
                   const isMe = m.sender === currentUser.username;
-                  const sender = getUserByUsername(m.sender);
                   return (
-                    <div key={m.id} className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-3 group/msg relative`}>
-                      <button onClick={() => onNavigateToProfile(m.sender)} className="w-8 h-8 rounded-xl bg-custom text-white font-black flex items-center justify-center shrink-0 border-2 border-white/20 shadow-md overflow-hidden">
-                        {sender?.profilePic ? <img src={sender.profilePic} className="w-full h-full object-cover" /> : m.sender[0].toUpperCase()}
-                      </button>
+                    <div key={m.id} className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-3`}>
                       <div className={`max-w-[80%] flex flex-col ${isMe ? 'items-end' : 'items-start'} gap-1`}>
-                        {m.replyToId && (
-                          <div className={`mb-1 p-2 rounded-xl text-[10px] italic border-l-4 opacity-60 ${isDarkMode ? 'bg-white/5 border-white/20' : 'bg-black/5 border-black/20'}`}>
-                            <p className="font-black truncate max-w-[150px]">Echo: @{m.replyToSender}</p>
-                            <p className="truncate max-w-[200px]">"{m.replyToText}"</p>
-                          </div>
-                        )}
-                        <div className={`relative group/bubble flex items-center gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                          <div className={`px-5 py-3 rounded-[1.5rem] font-bold text-sm border-b-4 ${isMe ? 'bg-blue-600 border-blue-800 text-white rounded-tr-none' : isDarkMode ? 'bg-slate-800 border-slate-900 text-white rounded-tl-none' : 'bg-white border-gray-200 text-slate-800 rounded-tl-none'}`}>
-                            <p className="break-words max-w-[250px] md:max-w-md">{m.text}</p>
-                          </div>
-                          <div className={`flex flex-col gap-1 opacity-0 group-hover/bubble:opacity-100 transition-all shrink-0`}>
-                            <button onClick={() => setReplyingTo(m)} className="p-1.5 bg-black/5 rounded-lg hover:bg-black/10 text-blue-500"><Reply size={14}/></button>
-                            <button onClick={() => setReactionPickerMsgId(reactionPickerMsgId === m.id ? null : m.id)} className="p-1.5 bg-black/5 rounded-lg hover:bg-black/10 text-yellow-500"><Smile size={14}/></button>
-                          </div>
-                        </div>
-
-                        {/* Timestamp & Reactions Container */}
-                        <div className={`flex flex-wrap items-center gap-2 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          <p className="text-[9px] font-black uppercase opacity-20 tracking-tighter">{formatMessageTime(m.timestamp)}</p>
-                          {m.reactions && m.reactions.length > 0 && m.reactions.map(r => (
-                            <button 
-                              key={r.emoji} 
-                              onClick={() => onReactToMessage(m.id, r.emoji)} 
-                              onContextMenu={(e) => { e.preventDefault(); setViewingReacters(r); }} 
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-black border-2 transition-all flex items-center gap-1 ${r.users.includes(currentUser.username) ? 'bg-custom/10 border-custom' : isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100'}`}
-                            >
-                              <span>{r.emoji}</span>
-                              <span className="opacity-60">{r.users.length}</span>
-                            </button>
-                          ))}
+                        <div className={`px-5 py-3 rounded-[1.5rem] font-bold text-sm border-b-4 ${isMe ? 'bg-blue-600 border-blue-800 text-white rounded-tr-none' : 'bg-white border-gray-200 rounded-tl-none'}`}>
+                          <p className="break-words max-w-md whitespace-pre-wrap">{m.text}</p>
                         </div>
                       </div>
-
-                      <AnimatePresence>
-                        {reactionPickerMsgId === m.id && (
-                          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className={`absolute z-20 bottom-full mb-2 p-2 rounded-2xl flex gap-2 shadow-2xl border-4 ${isDarkMode ? 'bg-slate-800 border-white/10' : 'bg-white border-black/10'}`}>
-                            {REACTION_EMOJIS.map(e => (
-                              <button key={e} onClick={() => { onReactToMessage(m.id, e); setReactionPickerMsgId(null); }} className="text-xl hover:scale-125 transition-transform">{e}</button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
                     </div>
                   );
-                }) : (
-                  <div className="h-full flex flex-col items-center justify-center opacity-10 py-10">
-                    <MessageSquare size={80} />
-                    <p className="font-black uppercase italic text-xl mt-4">Begin Connection</p>
-                  </div>
-                )}
+                })}
               </div>
 
-              {/* Footer */}
-              <div className="shrink-0 border-t border-gray-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
-                <AnimatePresence>
-                  {replyingTo && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className={`px-6 py-2 flex items-center justify-between ${isDarkMode ? 'bg-slate-800/80' : 'bg-blue-50/80'}`}>
-                      <div className="flex items-center gap-3">
-                        <Reply size={14} className="text-blue-500" />
-                        <div className="text-[9px] leading-tight">
-                          <p className="font-black uppercase tracking-widest text-blue-500">Replying to @{replyToName(replyingTo.sender)}</p>
-                          <p className="opacity-60 truncate max-w-xs md:max-w-md italic">"{replyingTo.text}"</p>
-                        </div>
-                      </div>
-                      <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full bg-black/5 hover:bg-black/10"><X size={12}/></button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <div className="p-4 md:p-6">
-                  <div className={`flex items-center gap-3 p-2 rounded-[2rem] border-4 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'} focus-within:border-blue-500 shadow-inner`}>
-                    <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Type frequency..." className={`flex-1 bg-transparent px-5 py-3 font-black text-sm outline-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`} />
-                    <button onClick={handleSend} disabled={isSending || !input.trim()} className="kahoot-button-blue p-4 rounded-2xl text-white shadow-xl active:scale-95 transition-all disabled:opacity-50"><Send size={20} /></button>
-                  </div>
+              <div className="p-4 md:p-6 shrink-0">
+                <div className={`flex items-center gap-3 p-2 rounded-[2rem] border-4 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'} focus-within:border-blue-500 shadow-inner`}>
+                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Transmit message..." className="flex-1 bg-transparent px-5 py-3 font-black text-sm outline-none" />
+                  <button onClick={handleSend} disabled={isSending || !input.trim()} className="kahoot-button-blue p-4 rounded-2xl text-white shadow-xl active:scale-95 disabled:opacity-50"><Send size={20} /></button>
                 </div>
               </div>
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center opacity-20 h-full">
               <Radio size={80} className="mb-6 animate-pulse" />
-              <h3 className="text-3xl font-black uppercase italic tracking-tighter mb-4">Neural Hub</h3>
-              <p className="text-xs font-black uppercase tracking-widest">Select a signal frequency to start communicating</p>
+              <p className="text-xs font-black uppercase tracking-widest">Select a channel to communicate</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Reacters Modal */}
-      <AnimatePresence>
-        {viewingReacters && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`w-full max-w-sm rounded-[3rem] p-8 ${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} border-4 shadow-2xl relative`}>
-              <button onClick={() => setViewingReacters(null)} className="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-all"><X size={24}/></button>
-              <h3 className="text-xl font-black uppercase italic mb-6">Synchronization Core {viewingReacters.emoji}</h3>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto fading-scrollbar">
-                {viewingReacters.users.map(u => {
-                  const rUser = getUserByUsername(u);
-                  return (
-                    <button key={u} onClick={() => { onNavigateToProfile(u); setViewingReacters(null); }} className="w-full p-3 rounded-2xl flex items-center gap-3 hover:bg-black/5 transition-all text-left">
-                      <div className="w-8 h-8 rounded-lg bg-custom text-white font-black flex items-center justify-center italic text-xs border-2 border-white/20 shrink-0 overflow-hidden">
-                        {rUser?.profilePic ? <img src={rUser.profilePic} className="w-full h-full object-cover" /> : u[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[12px] font-black uppercase truncate">{rUser?.displayName || u}</p>
-                        <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">@{u}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Group Create Modal */}
+      {/* NEW GROUP MODAL */}
       <AnimatePresence>
         {isCreatingGroup && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} w-full max-w-md rounded-[3rem] p-10 border-4 shadow-2xl`}>
-              <div className="flex justify-between items-center mb-8"><h3 className="text-2xl font-black uppercase italic">Initialize Group</h3><button onClick={() => setIsCreatingGroup(false)} className="opacity-40"><X size={28}/></button></div>
-              <div className="space-y-6">
-                 <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} placeholder="Group Designation..." className="w-full p-4 rounded-2xl border-2 bg-black/5 font-black text-center text-lg outline-none focus:border-custom" />
-                 <div className="max-h-48 overflow-y-auto fading-scrollbar p-2 space-y-2 bg-black/5 rounded-2xl">
-                    {allUsers.filter(u => u.username !== currentUser.username).map(u => (
-                      <button key={u.username} onClick={() => setSelectedForGroup(prev => prev.includes(u.username) ? prev.filter(x => x !== u.username) : [...prev, u.username])} className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${selectedForGroup.includes(u.username) ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-black/5'}`}>
-                         <div className="w-8 h-8 rounded-lg bg-custom text-white font-black flex items-center justify-center italic text-xs shrink-0 overflow-hidden">
-                           {u.profilePic ? <img src={u.profilePic} className="w-full h-full object-cover" /> : u.displayName[0]}
-                         </div>
-                         <p className="text-[12px] font-black uppercase flex-1 text-left">{u.displayName}</p>
-                         {selectedForGroup.includes(u.username) && <Check size={16}/>}
-                      </button>
-                    ))}
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/90 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} w-full max-w-xl rounded-[3rem] p-6 md:p-10 border-4 shadow-2xl flex flex-col max-h-[90vh]`}>
+              <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-black uppercase italic">Setup Neural Network</h3><button onClick={() => setIsCreatingGroup(false)} className="opacity-40"><X size={28}/></button></div>
+              
+              <div className="space-y-6 overflow-y-auto fading-scrollbar pr-2">
+                 <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">1. Network Alias (Name)</p>
+                    <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} placeholder="Designation..." className="w-full p-4 rounded-2xl border-2 bg-black/5 font-black text-lg outline-none focus:border-custom" />
                  </div>
-                 <button onClick={handleCreateGroup} disabled={!groupName.trim() || selectedForGroup.length === 0} className="kahoot-button-blue w-full py-5 rounded-2xl text-white font-black uppercase text-sm shadow-xl active:scale-95 transition-all">Launch Network</button>
+
+                 <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">2. Visual ID (Icon)</p>
+                    <div className="grid grid-cols-6 gap-2 p-3 bg-black/5 rounded-2xl">
+                       {GROUP_ICONS.map(icon => (
+                         <button key={icon} onClick={() => setSelectedGroupIcon(icon)} className={`text-2xl p-2 rounded-xl border-2 transition-all ${selectedGroupIcon === icon ? 'bg-custom/10 border-custom scale-110 shadow-sm' : 'border-transparent opacity-40'}`}>{icon}</button>
+                       ))}
+                    </div>
+                 </div>
+
+                 <div className="space-y-2">
+                    <div className="flex justify-between items-center px-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-40">3. Search & Add Citizens (Min. 2)</p>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${selectedForGroup.length >= 2 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>{selectedForGroup.length} Selected</span>
+                    </div>
+                    <div className="relative">
+                      <input type="text" value={userSearchTerm} onChange={e => setUserSearchTerm(e.target.value)} placeholder="Search ID..." className="w-full pl-10 pr-4 py-3 rounded-xl border-2 bg-black/5 text-sm font-bold outline-none focus:border-custom" />
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 opacity-30" size={16} />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto fading-scrollbar p-2 space-y-2 bg-black/5 rounded-2xl">
+                        {filteredUsers.map(u => (
+                          <button key={u.username} onClick={() => setSelectedForGroup(prev => prev.includes(u.username) ? prev.filter(x => x !== u.username) : [...prev, u.username])} className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${selectedForGroup.includes(u.username) ? 'bg-blue-600 text-white' : 'hover:bg-black/5'}`}>
+                            <div className="w-8 h-8 rounded-lg bg-custom text-white font-black flex items-center justify-center italic text-xs shrink-0 overflow-hidden">{u.profilePic ? <img src={u.profilePic} className="w-full h-full object-cover" /> : u.displayName[0]}</div>
+                            <p className="text-[12px] font-black flex-1 text-left uppercase tracking-tight truncate">{u.displayName}</p>
+                            {selectedForGroup.includes(u.username) && <Check size={16}/>}
+                          </button>
+                        ))}
+                        {filteredUsers.length === 0 && <p className="text-[10px] uppercase font-black opacity-20 text-center py-4">No citizens found</p>}
+                    </div>
+                 </div>
+
+                 <button onClick={handleCreateGroup} disabled={!isReadyToCreate} className="kahoot-button-blue w-full py-5 rounded-2xl text-white font-black uppercase text-sm shadow-xl active:scale-95 disabled:opacity-40 mt-4 transition-all">
+                   {!groupName.trim() ? "NAME REQUIRED" : (selectedForGroup.length < 2 ? `ADD ${2 - selectedForGroup.length} MORE USERS` : "ESTABLISH LINK")}
+                 </button>
               </div>
             </motion.div>
           </div>
@@ -393,11 +246,6 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
       </AnimatePresence>
     </div>
   );
-
-  function replyToName(username: string) {
-    const u = getUserByUsername(username);
-    return u?.displayName || username;
-  }
 };
 
 export default CityHallSection;

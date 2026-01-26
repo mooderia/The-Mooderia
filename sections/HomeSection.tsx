@@ -2,16 +2,17 @@
 import React, { useMemo } from 'react';
 import { User, Post } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Flame, Award, TrendingUp, ShieldCheck, Sparkles } from 'lucide-react';
+import { Flame, Award, TrendingUp, ShieldCheck, Sparkles, RefreshCw } from 'lucide-react';
 import { STREAK_BADGES, DAILY_WISDOM } from '../constants';
 
 interface HomeSectionProps {
   user: User;
   posts: Post[];
   isDarkMode: boolean;
+  onTriggerMood?: () => void;
 }
 
-const HomeSection: React.FC<HomeSectionProps> = ({ user, posts, isDarkMode }) => {
+const HomeSection: React.FC<HomeSectionProps> = ({ user, posts, isDarkMode, onTriggerMood }) => {
   const currentMood = user.moodHistory?.[user.moodHistory.length - 1]?.mood || 'Not set';
   const earnedBadges = STREAK_BADGES.filter(b => user.moodStreak >= b.threshold);
   
@@ -37,7 +38,12 @@ const HomeSection: React.FC<HomeSectionProps> = ({ user, posts, isDarkMode }) =>
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shrink-0">
         <div className="text-center md:text-left w-full md:w-auto">
           <h2 className={`text-4xl md:text-5xl font-black italic tracking-tighter uppercase ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Welcome, {user.displayName}!</h2>
-          <p className="opacity-40 font-black uppercase tracking-[0.2em] text-[10px] md:text-xs mt-2">Citizenship Tier: {user.title}</p>
+          <div className="flex items-center gap-3 mt-2 justify-center md:justify-start">
+             <p className="opacity-40 font-black uppercase tracking-[0.2em] text-[10px] md:text-xs">Tier: {user.title}</p>
+             <button onClick={onTriggerMood} className="bg-custom/10 text-custom px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-custom/20 hover:bg-custom hover:text-white transition-all flex items-center gap-1">
+               <RefreshCw size={10} /> Re-Sync Mood
+             </button>
+          </div>
         </div>
         
         <div className="flex flex-wrap gap-3 w-full md:w-auto justify-center md:justify-end">
