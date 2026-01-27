@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mood, Section, Post, Comment, Message, Notification, Group } from './types';
+import { User, Mood, Section, Post, Comment, Message, Notification, Group, DiaryEntry } from './types';
 import Sidebar from './components/Sidebar';
 import HomeSection from './sections/HomeSection';
 import MoodSection from './sections/MoodSection';
@@ -13,9 +13,10 @@ import NotificationsSection from './sections/NotificationsSection';
 import AuthScreen from './sections/AuthScreen';
 import LoadingScreen from './components/LoadingScreen';
 import MoodCheckIn from './components/MoodCheckIn';
-import { Lock, UserPlus } from 'lucide-react';
+import { Lock, UserPlus, WifiOff } from 'lucide-react';
 import { MOOD_SCORES, getExpNeeded } from './constants';
 import { supabase, isCloudEnabled, fetchGlobalFeed, syncProfile, fetchProfiles } from './services/supabaseService';
+import { useConnection } from './hooks/useConnection';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false); 
   const [isAppStarting, setIsAppStarting] = useState(true);
   const [showMoodCheckIn, setShowMoodCheckIn] = useState(false);
+  const { isOffline, isElectron, isCapacitor } = useConnection();
   
   const [allPosts, setAllPosts] = useState<Post[]>([]);
   const [allMessages, setAllMessages] = useState<Message[]>([]);
@@ -39,6 +41,7 @@ const App: React.FC = () => {
       ...user,
       blockedUsers: user.blockedUsers || [],
       moodHistory: user.moodHistory || [],
+      diaryEntries: user.diaryEntries || [],
       following: user.following || [],
       followers: user.followers || [],
       moodStreak: user.moodStreak || 0,
@@ -58,8 +61,7 @@ const App: React.FC = () => {
 
       let foundUser = false;
 
-      // 1. Try Cloud
-      if (isCloudEnabled && supabase) {
+      if (isCloudEnabled && supabase && !isOffline) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
@@ -72,7 +74,6 @@ const App: React.FC = () => {
         } catch (e) { console.info("METROPOLIS: Remote session fetch failed."); }
       }
 
-      // 2. Try Local (Includes Guest Persistence)
       if (!foundUser) {
         const savedUser = localStorage.getItem('mooderia_user');
         if (savedUser) {
@@ -80,7 +81,6 @@ const App: React.FC = () => {
         }
       }
 
-      // 3. Global Assets
       try {
         const [feed, users] = await Promise.all([fetchGlobalFeed(), fetchProfiles()]);
         setAllPosts(feed as Post[]);
@@ -91,7 +91,7 @@ const App: React.FC = () => {
       setTimeout(() => setIsAppStarting(false), 2000);
     };
     init();
-  }, []);
+  }, [isOffline]);
 
   useEffect(() => {
     if (isLoaded && currentUser && !showMoodCheckIn) {
@@ -105,8 +105,8 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isLoaded || !currentUser) return;
     localStorage.setItem('mooderia_user', JSON.stringify(currentUser));
-    if (isCloudEnabled && !isGuest) syncProfile(currentUser);
-  }, [currentUser, isLoaded, isGuest]);
+    if (isCloudEnabled && !isGuest && !isOffline) syncProfile(currentUser);
+  }, [currentUser, isLoaded, isGuest, isOffline]);
 
   useEffect(() => {
     const handleAIResponse = (e: any) => {
@@ -117,14 +117,14 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    if (isCloudEnabled && supabase && !isGuest) {
+    if (isCloudEnabled && supabase && !isGuest && !isOffline) {
       try {
         await supabase.auth.signOut();
       } catch (e) {}
     }
     localStorage.removeItem('mooderia_user');
     setCurrentUser(null);
-  }, [isGuest]);
+  }, [isGuest, isOffline]);
 
   const handleUpdatePet = useCallback((
     hunger: number, 
@@ -213,7 +213,7 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (recipient: string, text: string, options?: any) => {
-    if (!currentUser || isGuest) return;
+    if (!currentUser || isGuest || isOffline) return;
     const newMessageData: any = {
       sender: currentUser.username,
       recipient,
@@ -228,17 +228,43 @@ const App: React.FC = () => {
   };
 
   const handlePost = async (content: string, visibility: 'global' | 'circle') => {
-    if (!currentUser || isGuest) return;
-    const newPostData: any = { author_username: currentUser.username, content, visibility, likes: [] };
+    if (!currentUser || isGuest || isOffline) return;
+    const newPost: Post = { 
+      id: Math.random().toString(36).substr(2, 9),
+      author: currentUser.username, 
+      content, 
+      visibility, 
+      likes: [], 
+      comments: [], 
+      timestamp: Date.now() 
+    };
+
+    setAllPosts(prev => [newPost, ...prev]);
+
     if (isCloudEnabled && supabase) {
-      try { await supabase.from('posts').insert(newPostData); } catch (e) {}
-    } else {
-      setAllPosts(prev => [{ ...newPostData, id: Math.random().toString(), timestamp: Date.now(), author: currentUser.username, likes: [], comments: [] } as any, ...prev]);
+      try { 
+        await supabase.from('posts').insert({
+          author_username: currentUser.username,
+          content,
+          visibility,
+          likes: []
+        }); 
+      } catch (e) {}
     }
   };
 
+  const handleAddDiaryEntry = (entry: DiaryEntry) => {
+    setCurrentUser(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        diaryEntries: [entry, ...(prev.diaryEntries || [])]
+      };
+    });
+  };
+
   const handleHeart = (postId: string) => {
-    if (!currentUser || isGuest) return;
+    if (!currentUser || isGuest || isOffline) return;
     setAllPosts(prev => prev.map(p => {
       if (p.id === postId) {
         const isLiked = p.likes?.includes(currentUser.username);
@@ -250,7 +276,7 @@ const App: React.FC = () => {
   };
 
   if (isAppStarting) return <LoadingScreen />;
-  if (!currentUser) return <AuthScreen onLogin={(u) => { setCurrentUser(u); setViewingUsername(u.username); }} />;
+  if (!currentUser) return <AuthScreen onLogin={(u) => { setCurrentUser(u); setViewingUsername(u.username); }} isOffline={isOffline} />;
 
   const isFixedSection = activeSection === 'CityHall' || activeSection === 'Mood';
   const isLockedForGuest = isGuest && (activeSection === 'CityHall' || activeSection === 'Notifications' || activeSection === 'Profile');
@@ -274,11 +300,18 @@ const App: React.FC = () => {
         isDarkMode={isDarkMode} 
         user={currentUser!} 
         isGuest={isGuest}
+        isOffline={isOffline}
         unreadMessages={allMessages.filter(m => m.recipient === currentUser!.username && !m.read).length} 
         unreadNotifications={notifications.filter(n => n.recipient === currentUser!.username && !n.read).length} 
       />
       
       <main className="flex-1 flex flex-col min-h-0 relative pt-14 pb-16 md:pt-0 md:pb-0 h-full overflow-hidden">
+        {isOffline && (
+          <div className="absolute top-14 md:top-0 left-0 right-0 z-50 bg-red-500 text-white py-1.5 px-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-md">
+            <WifiOff size={14} /> METROPOLIS OFFLINE: Social Link Severed
+          </div>
+        )}
+
         <div className={`flex-1 flex flex-col min-h-0 ${isFixedSection ? 'overflow-hidden' : 'overflow-y-auto fading-scrollbar'} p-4 md:p-8`}>
           <motion.div 
             key={activeSection + (activeSection === 'Profile' ? viewingUsername : '')} 
@@ -317,6 +350,7 @@ const App: React.FC = () => {
                   <CityHallSection 
                     isDarkMode={isDarkMode} currentUser={currentUser!} allUsers={allUsers}
                     messages={allMessages} groups={allGroups} onSendMessage={handleSendMessage} 
+                    isOffline={isOffline}
                     onGroupUpdate={(g) => setAllGroups(prev => prev.map(old => old.id === g.id ? g : old))}
                     onGroupCreate={(g) => setAllGroups(prev => [...prev, g])}
                     onReadMessages={(u) => setAllMessages(prev => prev.map(m => (m.recipient === currentUser!.username && m.sender === u) ? {...m, read: true} : m))} 
@@ -332,6 +366,8 @@ const App: React.FC = () => {
                     posts={allPosts} 
                     onPost={handlePost} 
                     onHeart={handleHeart} 
+                    isOffline={isOffline}
+                    onAddDiaryEntry={handleAddDiaryEntry}
                     onDeletePost={() => {}} 
                     onEditPost={() => {}} 
                     onComment={() => {}} 
@@ -348,7 +384,17 @@ const App: React.FC = () => {
                 {activeSection === 'Zodiac' && <ZodiacSection isDarkMode={isDarkMode} />}
                 {activeSection === 'Notifications' && <NotificationsSection notifications={notifications.filter(n => n.recipient === currentUser!.username)} isDarkMode={isDarkMode} onMarkRead={() => {}} />}
                 {activeSection === 'Profile' && currentUser && <ProfileSection user={allUsers.find(u => u.username === viewingUsername) || currentUser} allPosts={allPosts} isDarkMode={isDarkMode} currentUser={currentUser} onEditProfile={(dn, un, pp, ti, bp, pc, bi) => { setCurrentUser({...currentUser!, displayName: dn, username: un, profilePic: pp, title: ti, profileColor: pc, bio: bi}); }} />}
-                {activeSection === 'Settings' && <SettingsSection isDarkMode={isDarkMode} onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} onLogout={handleLogout} user={currentUser!} onUnblock={() => {}} />}
+                {activeSection === 'Settings' && (
+                  <SettingsSection 
+                    isDarkMode={isDarkMode} 
+                    onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} 
+                    onLogout={handleLogout} 
+                    user={currentUser!} 
+                    onUnblock={() => {}} 
+                    isElectron={isElectron}
+                    isCapacitor={isCapacitor}
+                  />
+                )}
               </>
             )}
           </motion.div>

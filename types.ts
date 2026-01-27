@@ -9,6 +9,14 @@ export interface Badge {
   threshold: number;
 }
 
+export interface DiaryEntry {
+  id: string;
+  title: string;
+  content: string;
+  mood: Mood;
+  timestamp: number;
+}
+
 export interface User {
   displayName: string;
   username: string;
@@ -22,6 +30,7 @@ export interface User {
   posts: Post[];
   reposts: Post[];
   moodHistory: { date: string, mood: Mood, score: number }[];
+  diaryEntries?: DiaryEntry[];
   moodStreak: number;
   lastMoodDate?: string;
   profilePic?: string;

@@ -3,14 +3,15 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../types';
 import LoadingScreen from '../components/LoadingScreen';
-import { Cloud, Key, UserPlus, LogIn, ShieldCheck, Globe, UserCheck, AlertTriangle } from 'lucide-react';
+import { Cloud, Key, UserPlus, LogIn, ShieldCheck, Globe, UserCheck, AlertTriangle, WifiOff } from 'lucide-react';
 import { supabase, isCloudEnabled, syncProfile } from '../services/supabaseService';
 
 interface AuthScreenProps {
   onLogin: (user: User) => void;
+  isOffline?: boolean;
 }
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
+const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, isOffline = false }) => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +23,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (isOffline) {
+       setError("Neural connection lost. Metropolis registration requires a live link.");
+       return;
+    }
+
     setIsAuthenticating(true);
 
     if (isCloudEnabled && supabase) {
@@ -90,8 +97,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-black italic text-white tracking-tighter mb-2 uppercase">Mooderia</h1>
           <div className="flex items-center justify-center gap-2">
-            <Globe size={14} className="text-blue-400" />
-            <p className="text-blue-400 font-bold uppercase tracking-widest text-[10px]">Worldwide Sync Grid</p>
+            {isOffline ? <WifiOff size={14} className="text-red-500" /> : <Globe size={14} className="text-blue-400" />}
+            <p className={`${isOffline ? 'text-red-500' : 'text-blue-400'} font-bold uppercase tracking-widest text-[10px]`}>
+               {isOffline ? 'Metropolis Offline' : 'Worldwide Sync Grid'}
+            </p>
           </div>
         </div>
         
@@ -121,16 +130,18 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
           {error && <p className="text-[#e21b3c] text-xs font-black text-center bg-red-500/10 p-3 rounded-xl border border-red-500/20">{error}</p>}
           
-          <button type="submit" className="kahoot-button-blue w-full p-5 rounded-2xl text-white font-black text-lg mt-4 shadow-lg active:scale-95 uppercase flex items-center justify-center gap-3">
+          <button type="submit" disabled={isOffline} className={`kahoot-button-blue w-full p-5 rounded-2xl text-white font-black text-lg mt-4 shadow-lg active:scale-95 uppercase flex items-center justify-center gap-3 ${isOffline ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}>
             {authMode === 'signup' ? <UserPlus size={20}/> : <LogIn size={20}/>}
             {authMode === 'signup' ? 'Authorize ID' : 'Synchronize'}
           </button>
         </form>
         
         <div className="mt-8 flex flex-col gap-4">
-          <button onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setError(''); }} className="text-xs font-bold text-blue-400 hover:text-white transition-colors hover:underline text-center uppercase tracking-widest">
-            {authMode === 'signup' ? 'Back to Neural Login' : "New entity? Apply for Citizenship"}
-          </button>
+          {!isOffline && (
+            <button onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setError(''); }} className="text-xs font-bold text-blue-400 hover:text-white transition-colors hover:underline text-center uppercase tracking-widest">
+              {authMode === 'signup' ? 'Back to Neural Login' : "New entity? Apply for Citizenship"}
+            </button>
+          )}
           
           <div className="relative flex items-center py-2">
             <div className="flex-grow border-t border-white/10"></div>

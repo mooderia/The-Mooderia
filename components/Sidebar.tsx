@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Home, Smile, Moon, Building2, User, Settings, Bell, LucideProps, Clock as ClockIcon, ChevronRight, Sparkles, Lock } from 'lucide-react';
+import { Home, Smile, Moon, Building2, User, Settings, Bell, LucideProps, Clock as ClockIcon, ChevronRight, Sparkles, Lock, WifiOff } from 'lucide-react';
 import { Section, User as UserType } from '../types';
 
 interface SidebarProps {
@@ -10,11 +10,12 @@ interface SidebarProps {
   isDarkMode: boolean;
   user: UserType;
   isGuest?: boolean;
+  isOffline?: boolean;
   unreadMessages?: number;
   unreadNotifications?: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isDarkMode, user, isGuest = false, unreadMessages = 0, unreadNotifications = 0 }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isDarkMode, user, isGuest = false, isOffline = false, unreadMessages = 0, unreadNotifications = 0 }) => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -51,8 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isDarkMode
             >
               <div className="relative">
                 {React.cloneElement(item.icon, { size: 24 })}
-                {isGuest && item.restricted && <Lock size={10} className="absolute -top-1 -right-1 text-red-500" />}
-                {!isGuest && item.id === 'CityHall' && unreadMessages > 0 && <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#e21b3c] text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm">{unreadMessages}</span>}
+                {(isGuest || (isOffline && item.restricted)) && <Lock size={10} className="absolute -top-1 -right-1 text-red-500" />}
+                {!isGuest && !isOffline && item.id === 'CityHall' && unreadMessages > 0 && <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#e21b3c] text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm">{unreadMessages}</span>}
               </div>
               <span className="text-[9px] font-black uppercase mt-1.5 tracking-tight">{item.mobileLabel}</span>
             </button>
@@ -85,8 +86,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isDarkMode
             >
               <span className="shrink-0">{React.cloneElement(item.icon, { size: 20 })}</span>
               <span className="flex-1 text-left">{item.label}</span>
-              {isGuest && item.restricted && <Lock size={14} className="opacity-40" />}
-              {!isGuest && item.id === 'CityHall' && unreadMessages > 0 && <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full border-2 border-white shadow-lg leading-none">{unreadMessages}</span>}
+              {(isGuest || (isOffline && item.restricted)) && <Lock size={14} className="opacity-40" />}
+              {!isGuest && !isOffline && item.id === 'CityHall' && unreadMessages > 0 && <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full border-2 border-white shadow-lg leading-none">{unreadMessages}</span>}
               <ChevronRight size={16} className={`opacity-0 group-hover:opacity-100 transition-all ${activeSection === item.id ? 'opacity-100 translate-x-1' : ''}`} />
             </button>
           ))}
@@ -103,6 +104,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isDarkMode
         </nav>
 
         <div className="mt-auto space-y-2">
+          {isOffline && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 rounded-xl mb-2">
+               <WifiOff size={14} />
+               <span className="text-[10px] font-black uppercase">Offline</span>
+            </div>
+          )}
           <button onClick={() => onNavigate('Settings')} className={`w-full flex items-center gap-3.5 p-3 rounded-2xl font-black text-[13px] uppercase tracking-tight transition-all border-b-4 active:translate-y-0.5 active:border-b-2 ${activeSection === 'Settings' ? 'bg-slate-700 border-slate-900 text-white shadow-md' : 'hover:bg-black/5 opacity-70 hover:opacity-100'}`}>
             <span className="shrink-0"><Settings size={20} /></span>
             <span className="flex-1 text-left">System</span>

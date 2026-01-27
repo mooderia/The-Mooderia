@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Send, Sparkles, Brain, Clock, Globe, Users, Trophy, MessageSquare, Repeat, Reply, ShieldAlert, Activity, Stethoscope, Trash2, Edit, X, Lock } from 'lucide-react';
-import { User, Post, Comment } from '../types';
+import { Heart, Send, Sparkles, Brain, Clock, Globe, Users, Trophy, MessageSquare, Repeat, Reply, ShieldAlert, Activity, Stethoscope, Trash2, Edit, X, Lock, WifiOff, Book, Plus, Calendar } from 'lucide-react';
+import { User, Post, Comment, DiaryEntry, Mood } from '../types';
 import MoodPetSection from './MoodPetSection';
 import { STREAK_BADGES } from '../constants';
 
@@ -22,16 +22,24 @@ interface MoodSectionProps {
   onNavigateToProfile: (username: string) => void;
   onUpdatePet: (hunger: number, thirst: number, rest: number, coins: number, exp?: number, sleepUntil?: number | null, newEmoji?: string, markChosen?: boolean, newName?: string, gameCooldownId?: string) => void;
   onViolation: (reason: string) => void;
+  onAddDiaryEntry: (entry: DiaryEntry) => void;
   isGuest?: boolean;
+  isOffline?: boolean;
 }
 
-const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart, onDeletePost, onEditPost, onComment, onCommentInteraction, onRepost, onFollow, onBlock, isDarkMode, onNavigateToProfile, onUpdatePet, onViolation, isGuest = false }) => {
-  const [subTab, setSubTab] = useState<'Express' | 'Teller' | 'Scan' | 'Mood Pet'>('Express');
+const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart, onDeletePost, onEditPost, onComment, onCommentInteraction, onRepost, onFollow, onBlock, isDarkMode, onNavigateToProfile, onUpdatePet, onViolation, onAddDiaryEntry, isGuest = false, isOffline = false }) => {
+  const [subTab, setSubTab] = useState<'Express' | 'Diary' | 'Teller' | 'Scan' | 'Mood Pet'>('Express');
   const [postContent, setPostContent] = useState('');
   const [feedFilter, setFeedFilter] = useState<'Global' | 'Circle'>('Global');
   const [postVisibility, setPostVisibility] = useState<'global' | 'circle'>('global');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   
+  // Diary State
+  const [isAddingDiary, setIsAddingDiary] = useState(false);
+  const [diaryTitle, setDiaryTitle] = useState('');
+  const [diaryContent, setDiaryContent] = useState('');
+  const [diaryMood, setDiaryMood] = useState<Mood>('Normal');
+
   const [tellerQuestion, setTellerQuestion] = useState('');
   const [tellerResponse, setTellerResponse] = useState('');
   const [isTellerLoading, setIsTellerLoading] = useState(false);
@@ -58,11 +66,26 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
   }, [posts, feedFilter, user.following, user.username, user.blockedUsers]);
 
   const handlePost = async () => {
-    if (isGuest || !postContent.trim() || isBroadcasting) return;
+    if (isGuest || isOffline || !postContent.trim() || isBroadcasting) return;
     setIsBroadcasting(true);
     onPost(postContent, postVisibility);
     setPostContent('');
     setIsBroadcasting(false);
+  };
+
+  const handleSaveDiary = () => {
+    if (!diaryTitle.trim() || !diaryContent.trim()) return;
+    const newEntry: DiaryEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: diaryTitle,
+      content: diaryContent,
+      mood: diaryMood,
+      timestamp: Date.now()
+    };
+    onAddDiaryEntry(newEntry);
+    setDiaryTitle('');
+    setDiaryContent('');
+    setIsAddingDiary(false);
   };
 
   const handleStartEdit = (post: Post) => {
@@ -77,7 +100,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
   };
 
   const handleAddComment = (postId: string) => {
-    if (isGuest) return;
+    if (isGuest || isOffline) return;
     const text = commentInputs[postId];
     if (!text?.trim()) return;
     onComment(postId, text);
@@ -85,7 +108,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
   };
 
   const handleReply = (postId: string, commentId: string) => {
-    if (isGuest || !replyContent.trim()) return;
+    if (isGuest || isOffline || !replyContent.trim()) return;
     onCommentInteraction(postId, commentId, 'reply', replyContent);
     setReplyContent('');
     setReplyingTo(null);
@@ -102,18 +125,18 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
           </div>
           <p className="text-sm font-bold opacity-80 mt-1 leading-relaxed">"{comment.text}"</p>
           <div className="flex items-center gap-4 mt-2">
-            <button disabled={isGuest} onClick={() => onCommentInteraction(postId, comment.id, 'heart')} className={`flex items-center gap-1 text-[9px] font-black uppercase text-custom transition-transform active:scale-95 ${isGuest ? 'opacity-30' : ''}`}><Heart size={12} fill={comment.hearts > 0 ? "currentColor" : "none"} /> {comment.hearts} Sync</button>
+            <button disabled={isGuest || isOffline} onClick={() => onCommentInteraction(postId, comment.id, 'heart')} className={`flex items-center gap-1 text-[9px] font-black uppercase text-custom transition-transform active:scale-95 ${isGuest || isOffline ? 'opacity-30' : ''}`}><Heart size={12} fill={comment.hearts > 0 ? "currentColor" : "none"} /> {comment.hearts} Sync</button>
             <button 
-              disabled={isGuest}
+              disabled={isGuest || isOffline}
               onClick={() => setReplyingTo(replyingTo?.commentId === comment.id ? null : { postId, commentId: comment.id })} 
-              className={`flex items-center gap-1 text-[9px] font-black uppercase text-blue-500 transition-transform active:scale-95 ${isGuest ? 'opacity-30' : ''}`}
+              className={`flex items-center gap-1 text-[9px] font-black uppercase text-blue-500 transition-transform active:scale-95 ${isGuest || isOffline ? 'opacity-30' : ''}`}
             >
               <Reply size={12} /> Echo
             </button>
           </div>
           
           <AnimatePresence>
-            {replyingTo?.commentId === comment.id && !isGuest && (
+            {replyingTo?.commentId === comment.id && !isGuest && !isOffline && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-3 overflow-hidden">
                 <div className="flex gap-2">
                   <input 
@@ -196,10 +219,12 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
     return new Date(ts).toLocaleDateString();
   };
 
+  const diaryEntries = user.diaryEntries || [];
+
   return (
     <div className="flex flex-col gap-6 pb-20 h-full min-h-0">
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 shrink-0">
-        {['Express', 'Teller', 'Scan', 'Mood Pet'].map((t) => (
+        {['Express', 'Diary', 'Teller', 'Scan', 'Mood Pet'].map((t) => (
           <button key={t} onClick={() => setSubTab(t as any)} className={`px-5 py-2.5 rounded-full font-black text-[10px] md:text-xs transition-all whitespace-nowrap uppercase tracking-tighter border-b-4 ${subTab === t ? 'bg-custom border-black/20 text-white shadow-lg translate-y-[-2px]' : isDarkMode ? 'bg-slate-800 border-slate-900 text-white/30' : 'bg-white border-gray-100 text-slate-500'}`}>
             {t}
           </button>
@@ -209,9 +234,44 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
       <div className="flex-1 min-h-0 relative">
         <AnimatePresence mode="wait">
           {subTab === 'Express' && (
-            <motion.div key="express" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto fading-scrollbar pr-2 space-y-6 pb-20">
+            <motion.div 
+              key="express"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="h-full flex flex-col relative"
+            >
+              {isOffline && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute inset-0 z-[100] backdrop-blur-md bg-black/40 flex items-center justify-center p-6 rounded-[3rem]"
+                >
+                  <div className="bg-indigo-600 text-white p-10 rounded-[3rem] shadow-2xl border-b-8 border-indigo-900 max-w-md text-center">
+                    <div className="relative inline-block mb-6">
+                      <WifiOff size={80} className="text-white" />
+                      <motion.div 
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className="absolute -top-2 -right-2 bg-white rounded-full p-2"
+                      >
+                        <Lock size={24} className="text-indigo-600" />
+                      </motion.div>
+                    </div>
+                    <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-4 leading-none">Express Offline</h2>
+                    <p className="text-sm font-bold opacity-90 leading-relaxed uppercase tracking-widest">
+                      The Metropolis Express feed requires a live uplink to synchronize worldwide broadcasts.
+                    </p>
+                    <div className="mt-8 px-6 py-3 bg-white/10 rounded-2xl border-2 border-white/20 inline-block">
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em]">Status: Reconnecting...</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              <div className="h-full overflow-y-auto fading-scrollbar pr-2 space-y-6 pb-20">
               {!isGuest ? (
-                <div className={`p-6 md:p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} border-4 border-black/5 shadow-xl`}>
+                <div className={`p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] ${isDarkMode ? 'bg-slate-900 border-white/5' : 'bg-white border-black/5'} border-4 shadow-2xl`}>
                   <textarea 
                     value={postContent} 
                     onChange={(e) => setPostContent(e.target.value)} 
@@ -226,7 +286,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                     </div>
                     <button 
                       onClick={handlePost} 
-                      disabled={isBroadcasting}
+                      disabled={isBroadcasting || !postContent.trim()}
                       className="kahoot-button-custom px-8 py-4 text-white rounded-2xl font-black text-xs flex items-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
                     >
                       {isBroadcasting ? <Clock size={18} className="animate-spin" /> : <Send size={18} />} 
@@ -263,7 +323,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                             <p className="text-[9px] font-black opacity-30 uppercase tracking-widest flex items-center gap-1"><Clock size={10}/> {formatTime(post.timestamp)}</p>
                           </div>
                         </div>
-                        {isAuthor && !isGuest && (
+                        {isAuthor && !isGuest && !isOffline && (
                           <div className="flex gap-2">
                              <button onClick={() => handleStartEdit(post)} className="p-2 bg-black/5 hover:bg-black/10 rounded-xl transition-all text-blue-500"><Edit size={16}/></button>
                              <button onClick={() => onDeletePost(post.id)} className="p-2 bg-black/5 hover:bg-black/10 rounded-xl transition-all text-red-500"><Trash2 size={16}/></button>
@@ -271,7 +331,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                         )}
                       </div>
 
-                      {editingPostId === post.id && !isGuest ? (
+                      {editingPostId === post.id && !isGuest && !isOffline ? (
                         <div className="space-y-4 mb-6">
                            <textarea value={editBuffer} onChange={e => setEditBuffer(e.target.value)} className={`w-full p-4 rounded-2xl border-2 font-bold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100 text-slate-900'} outline-none focus:border-custom`} rows={3} />
                            <div className="flex gap-2">
@@ -288,7 +348,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
 
                       <div className="flex items-center gap-6 pt-4 border-t border-black/5">
                         <div className="flex items-center gap-1.5">
-                           <button disabled={isGuest} onClick={() => onHeart(post.id)} className={`flex items-center gap-1.5 ${isLiked ? 'text-custom' : 'opacity-40'} font-black text-[10px] uppercase transition-all active:scale-95 ${isGuest ? 'cursor-not-allowed' : ''}`}>
+                           <button disabled={isGuest || isOffline} onClick={() => onHeart(post.id)} className={`flex items-center gap-1.5 ${isLiked ? 'text-custom' : 'opacity-40'} font-black text-[10px] uppercase transition-all active:scale-95 ${isGuest || isOffline ? 'cursor-not-allowed' : ''}`}>
                              <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
                            </button>
                            <button onClick={() => setLikersModalPost(post)} className="text-custom font-black text-[10px] hover:underline transition-all">
@@ -296,14 +356,14 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                            </button>
                         </div>
                         <button onClick={() => setExpandedPostId(expandedPostId === post.id ? null : post.id)} className="flex items-center gap-1.5 text-blue-500 font-black text-[10px] uppercase"><MessageSquare size={16} /> {post.comments?.length || 0} ECHO</button>
-                        <button disabled={isGuest} onClick={() => onRepost(post)} className={`flex items-center gap-1.5 text-green-500 font-black text-[10px] uppercase transition-transform active:scale-95 ${isGuest ? 'opacity-30 cursor-not-allowed' : ''}`}><Repeat size={16} /> ECHO RE-SIGNAL</button>
+                        <button disabled={isGuest || isOffline} onClick={() => onRepost(post)} className={`flex items-center gap-1.5 text-green-500 font-black text-[10px] uppercase transition-transform active:scale-95 ${isGuest || isOffline ? 'opacity-30 cursor-not-allowed' : ''}`}><Repeat size={16} /> ECHO RE-SIGNAL</button>
                       </div>
 
                       <AnimatePresence>
                         {expandedPostId === post.id && (
                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                              <div className="pt-6 space-y-4">
-                                {!isGuest && (
+                                {!isGuest && !isOffline && (
                                   <div className="flex gap-2">
                                     <input 
                                       type="text" 
@@ -332,6 +392,109 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                   );
                 }) : <div className="py-20 text-center opacity-20 font-black uppercase italic text-lg tracking-widest">The metropolis is quiet.</div>}
               </div>
+            </div>
+          </motion.div>
+        )}
+
+          {subTab === 'Diary' && (
+            <motion.div key="diary" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto fading-scrollbar pr-2 space-y-6 pb-20">
+              <div className="flex justify-between items-center px-2">
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter">My Neural Logs</h3>
+                <button 
+                  onClick={() => setIsAddingDiary(true)} 
+                  className="kahoot-button-green px-6 py-3 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 text-xs"
+                >
+                  <Plus size={18} /> NEW LOG
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {diaryEntries.length > 0 ? diaryEntries.map(entry => (
+                  <motion.div 
+                    key={entry.id} 
+                    initial={{ opacity: 0, rotateY: -10 }} 
+                    animate={{ opacity: 1, rotateY: 0 }} 
+                    className={`p-6 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} border-4 shadow-xl relative overflow-hidden group hover:-translate-y-1 transition-all`}
+                  >
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-custom/10 rounded-bl-[2rem] flex items-center justify-center text-custom">
+                       <Book size={18} />
+                    </div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="p-2 bg-black/5 rounded-xl text-lg">{entry.mood === 'Wonderful' ? '✨' : entry.mood === 'Excited' ? '🤩' : entry.mood === 'Happy' ? '😊' : entry.mood === 'Normal' ? '😐' : entry.mood === 'Tired' ? '😴' : entry.mood === 'Angry' ? '😡' : '🔥'}</span>
+                      <div>
+                        <h4 className="font-black text-sm uppercase italic leading-none">{entry.title}</h4>
+                        <p className="text-[9px] font-black opacity-30 uppercase tracking-widest mt-1 flex items-center gap-1"><Calendar size={10}/> {new Date(entry.timestamp).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold opacity-70 leading-relaxed italic line-clamp-3">"{entry.content}"</p>
+                  </motion.div>
+                )) : (
+                  <div className="col-span-full py-20 text-center opacity-20 font-black uppercase italic text-lg tracking-widest flex flex-col items-center gap-4">
+                    <Book size={60} />
+                    The archives are empty.
+                  </div>
+                )}
+              </div>
+
+              <AnimatePresence>
+                {isAddingDiary && (
+                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900' : 'bg-white'} w-full max-w-2xl rounded-[3rem] p-10 border-4 border-black/5 shadow-2xl relative flex flex-col max-h-[90vh]`}>
+                       <button onClick={() => setIsAddingDiary(false)} className="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-all"><X size={32}/></button>
+                       <div className="mb-8">
+                         <h3 className="text-3xl font-black italic uppercase tracking-tighter">New Neural Log</h3>
+                         <p className="text-[10px] font-black opacity-40 uppercase tracking-widest mt-1">Metropolis Private Archive</p>
+                       </div>
+
+                       <div className="space-y-6 overflow-y-auto fading-scrollbar pr-2">
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Log Designation (Title)</p>
+                            <input 
+                              type="text" 
+                              value={diaryTitle} 
+                              onChange={e => setDiaryTitle(e.target.value)} 
+                              placeholder="Title your frequency..." 
+                              className="w-full p-4 rounded-2xl border-2 bg-black/5 font-black text-lg outline-none focus:border-custom"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Emotional Tone</p>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+                               {['Wonderful', 'Excited', 'Happy', 'Normal', 'Tired', 'Angry', 'Flaming'].map(m => (
+                                 <button 
+                                   key={m} 
+                                   onClick={() => setDiaryMood(m as Mood)} 
+                                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${diaryMood === m ? 'bg-custom text-white border-custom' : 'bg-black/5 border-transparent opacity-60'}`}
+                                 >
+                                   {m}
+                                 </button>
+                               ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">The Frequency (Content)</p>
+                            <textarea 
+                              value={diaryContent} 
+                              onChange={e => setDiaryContent(e.target.value)} 
+                              placeholder="Describe your inner metropolis..." 
+                              className="w-full p-6 rounded-[2rem] border-2 bg-black/5 font-bold text-base outline-none focus:border-custom min-h-[200px]"
+                            ></textarea>
+                          </div>
+
+                          <button 
+                            onClick={handleSaveDiary} 
+                            disabled={!diaryTitle.trim() || !diaryContent.trim()}
+                            className="kahoot-button-custom w-full py-5 rounded-2xl text-white font-black uppercase text-base shadow-xl active:scale-95 disabled:opacity-50 mt-4"
+                          >
+                            ARCHIVE LOG
+                          </button>
+                       </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 

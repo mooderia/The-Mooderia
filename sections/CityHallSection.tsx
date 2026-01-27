@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Users, Search, MessageSquare, ArrowLeft, ShieldCheck, Check, CheckCheck, Clock, Smile, Plus, X, Reply, Radio, Rocket, MessageCircle, Star, Ghost, Zap, Coffee, Music, Palette } from 'lucide-react';
+import { Send, Users, Search, MessageSquare, ArrowLeft, ShieldCheck, Check, CheckCheck, Clock, Smile, Plus, X, Reply, Radio, Rocket, MessageCircle, Star, Ghost, Zap, Coffee, Music, Palette, WifiOff, Lock } from 'lucide-react';
 import { User, Message, MessageReaction, Group } from '../types';
 
 interface CityHallSectionProps {
@@ -17,11 +17,12 @@ interface CityHallSectionProps {
   onNavigateToProfile: (username: string) => void;
   onReactToMessage: (msgId: string, emoji: string) => void;
   onViolation: (reason: string) => void;
+  isOffline?: boolean;
 }
 
 const GROUP_ICONS = ['🚀', '💬', '✨', '👻', '⚡', '☕', '🎵', '🎨', '🔥', '🌈', '🛸', '🛡️'];
 
-const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUser, allUsers, messages, groups, onSendMessage, onReadMessages, onGroupUpdate, onGroupCreate, onNavigateToProfile, onReactToMessage, onViolation }) => {
+const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUser, allUsers, messages, groups, onSendMessage, onReadMessages, onGroupUpdate, onGroupCreate, onNavigateToProfile, onReactToMessage, onViolation, isOffline = false }) => {
   const [input, setInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCitizen, setSelectedCitizen] = useState<{ username: string, isGroup?: boolean } | null>(null);
@@ -87,7 +88,7 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
   }, [selectedCitizen?.username]);
 
   const handleSend = async () => {
-    if (!input.trim() || !activeChatInfo || isSending) return;
+    if (!input.trim() || !activeChatInfo || isSending || isOffline) return;
     setIsSending(true);
     onSendMessage(activeChatInfo.username, input, { isGroup: activeChatInfo.isGroup, recipients: activeChatInfo.recipients, groupName: activeChatInfo.displayName });
     setInput('');
@@ -95,7 +96,7 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
   };
 
   const handleCreateGroup = () => {
-    if (!groupName.trim() || selectedForGroup.length < 2) return;
+    if (!groupName.trim() || selectedForGroup.length < 2 || isOffline) return;
     const groupId = 'group_' + Math.random().toString(36).substr(2, 9);
     const members = [...selectedForGroup, currentUser.username];
     const newGroup: Group = { id: groupId, name: groupName, owner: currentUser.username, members: members, nicknames: {}, createdAt: Date.now(), photo: selectedGroupIcon };
@@ -113,14 +114,42 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
 
   return (
     <div className="flex flex-col h-full min-h-0 w-full relative">
+      {isOffline && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 z-[100] backdrop-blur-md bg-black/40 flex items-center justify-center p-6 rounded-[2.5rem]"
+        >
+          <div className="bg-red-600 text-white p-10 rounded-[3rem] shadow-2xl border-b-8 border-red-900 max-w-md text-center">
+            <div className="relative inline-block mb-6">
+              <WifiOff size={80} className="text-white" />
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="absolute -top-2 -right-2 bg-white rounded-full p-2"
+              >
+                <Lock size={24} className="text-red-600" />
+              </motion.div>
+            </div>
+            <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-4 leading-none">Citizen Hub Offline</h2>
+            <p className="text-sm font-bold opacity-90 leading-relaxed uppercase tracking-widest">
+              The Hub requires a live connection to the Metropolis Grid. Social resonance is currently suspended.
+            </p>
+            <div className="mt-8 px-6 py-3 bg-white/10 rounded-2xl border-2 border-white/20 inline-block">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em]">Status: Reconnecting...</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
       <div className="flex justify-between items-center mb-6 shrink-0 px-2">
         <h2 className={`text-3xl md:text-4xl font-black italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Citizen Hub</h2>
-        <button onClick={() => setIsCreatingGroup(true)} className="kahoot-button-blue px-6 py-3 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 text-xs">
+        <button disabled={isOffline} onClick={() => setIsCreatingGroup(true)} className="kahoot-button-blue px-6 py-3 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 text-xs disabled:opacity-50 disabled:grayscale">
           <Plus size={18} /> <span>NEW GROUP</span>
         </button>
       </div>
 
       <div className={`flex-1 flex flex-col md:flex-row rounded-[3rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-2xl overflow-hidden border-4 border-black/5 relative min-h-0 h-full`}>
+
         {/* Sidebar */}
         <div className={`w-full md:w-64 lg:w-80 border-r ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} flex flex-col ${selectedCitizen ? 'hidden md:flex' : 'flex'} min-h-0 h-full`}>
           <div className="p-4 border-b border-gray-100 dark:border-slate-800 shrink-0">
@@ -179,8 +208,8 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
 
               <div className="p-4 md:p-6 shrink-0">
                 <div className={`flex items-center gap-3 p-2 rounded-[2rem] border-4 transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'} focus-within:border-blue-500 shadow-inner`}>
-                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Transmit message..." className="flex-1 bg-transparent px-5 py-3 font-black text-sm outline-none" />
-                  <button onClick={handleSend} disabled={isSending || !input.trim()} className="kahoot-button-blue p-4 rounded-2xl text-white shadow-xl active:scale-95 disabled:opacity-50"><Send size={20} /></button>
+                  <input disabled={isOffline} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder={isOffline ? "Uplink Lost..." : "Transmit message..."} className="flex-1 bg-transparent px-5 py-3 font-black text-sm outline-none disabled:opacity-50" />
+                  <button onClick={handleSend} disabled={isSending || !input.trim() || isOffline} className="kahoot-button-blue p-4 rounded-2xl text-white shadow-xl active:scale-95 disabled:opacity-50"><Send size={20} /></button>
                 </div>
               </div>
             </>
@@ -236,8 +265,8 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
                     </div>
                  </div>
 
-                 <button onClick={handleCreateGroup} disabled={!isReadyToCreate} className="kahoot-button-blue w-full py-5 rounded-2xl text-white font-black uppercase text-sm shadow-xl active:scale-95 disabled:opacity-40 mt-4 transition-all">
-                   {!groupName.trim() ? "NAME REQUIRED" : (selectedForGroup.length < 2 ? `ADD ${2 - selectedForGroup.length} MORE USERS` : "ESTABLISH LINK")}
+                 <button onClick={handleCreateGroup} disabled={!isReadyToCreate || isOffline} className="kahoot-button-blue w-full py-5 rounded-2xl text-white font-black uppercase text-sm shadow-xl active:scale-95 disabled:opacity-40 mt-4 transition-all">
+                   {isOffline ? "UPLINK REQUIRED" : (!groupName.trim() ? "NAME REQUIRED" : (selectedForGroup.length < 2 ? `ADD ${2 - selectedForGroup.length} MORE USERS` : "ESTABLISH LINK"))}
                  </button>
               </div>
             </motion.div>
