@@ -10,13 +10,13 @@ import CityHallSection from './sections/CityHallSection';
 import ProfileSection from './sections/ProfileSection';
 import SettingsSection from './sections/SettingsSection';
 import NotificationsSection from './sections/NotificationsSection';
+import PsychiatristSection from './sections/PsychiatristSection';
 import AuthScreen from './sections/AuthScreen';
 import LoadingScreen from './components/LoadingScreen';
 import MoodCheckIn from './components/MoodCheckIn';
-import { Lock, UserPlus, WifiOff } from 'lucide-react';
+import { Lock, UserPlus, WifiOff, ShieldAlert } from 'lucide-react';
 import { MOOD_SCORES, getExpNeeded } from './constants';
 import { supabase, isCloudEnabled, fetchGlobalFeed, syncProfile, fetchProfiles } from './services/supabaseService';
-import { useConnection } from './hooks/useConnection';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -26,7 +26,7 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false); 
   const [isAppStarting, setIsAppStarting] = useState(true);
   const [showMoodCheckIn, setShowMoodCheckIn] = useState(false);
-  const { isOffline, isElectron, isCapacitor } = useConnection();
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
   const [allPosts, setAllPosts] = useState<Post[]>([]);
   const [allMessages, setAllMessages] = useState<Message[]>([]);
@@ -35,6 +35,17 @@ const App: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   const isGuest = useMemo(() => currentUser?.email === 'guest@mooderia.local', [currentUser]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const migrateUserData = (user: User): User => {
     return {
@@ -219,11 +230,20 @@ const App: React.FC = () => {
       recipient,
       text,
       is_group: options?.isGroup || false,
+      timestamp: Date.now(),
+      id: Math.random().toString(36).substr(2, 9),
+      read: false
     };
+
+    setAllMessages(prev => [...prev, newMessageData]);
+
     if (isCloudEnabled && supabase) {
-      try { await supabase.from('messages').insert(newMessageData); } catch (e) {}
-    } else {
-      setAllMessages(prev => [...prev, { ...newMessageData, id: Math.random().toString(), timestamp: Date.now(), read: false }]);
+      try { await supabase.from('messages').insert({
+        sender: currentUser.username,
+        recipient,
+        text,
+        is_group: options?.isGroup || false
+      }); } catch (e) {}
     }
   };
 
@@ -278,8 +298,9 @@ const App: React.FC = () => {
   if (isAppStarting) return <LoadingScreen />;
   if (!currentUser) return <AuthScreen onLogin={(u) => { setCurrentUser(u); setViewingUsername(u.username); }} isOffline={isOffline} />;
 
-  const isFixedSection = activeSection === 'CityHall' || activeSection === 'Mood';
+  const isFixedSection = activeSection === 'CityHall' || activeSection === 'Mood' || activeSection === 'Psychiatrist';
   const isLockedForGuest = isGuest && (activeSection === 'CityHall' || activeSection === 'Notifications' || activeSection === 'Profile');
+  const isLockedForOffline = isOffline && (activeSection === 'CityHall');
 
   return (
     <div style={{'--theme-color': currentUser.profileColor || '#e21b3c'} as React.CSSProperties} className={`h-screen max-h-screen overflow-hidden flex flex-col md:flex-row ${isDarkMode ? 'bg-[#0f0f0f] text-white' : 'bg-[#f7f8fa] text-slate-900'} transition-colors duration-300`}>
@@ -307,7 +328,7 @@ const App: React.FC = () => {
       
       <main className="flex-1 flex flex-col min-h-0 relative pt-14 pb-16 md:pt-0 md:pb-0 h-full overflow-hidden">
         {isOffline && (
-          <div className="absolute top-14 md:top-0 left-0 right-0 z-50 bg-red-500 text-white py-1.5 px-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-md">
+          <div className="absolute top-14 md:top-0 left-0 right-0 z-50 bg-red-600 text-white py-1.5 px-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-md">
             <WifiOff size={14} /> METROPOLIS OFFLINE: Social Link Severed
           </div>
         )}
@@ -319,21 +340,32 @@ const App: React.FC = () => {
             animate={{ opacity: 1, y: 0 }} 
             className="max-w-6xl mx-auto w-full flex-1 flex flex-col min-h-0 h-full relative"
           >
-            {isLockedForGuest ? (
+            {isLockedForGuest || isLockedForOffline ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
                 <motion.div 
                   initial={{ scale: 0.8 }} 
                   animate={{ scale: 1 }} 
-                  className="bg-red-500 text-white p-8 rounded-[3rem] shadow-2xl border-b-8 border-red-800"
+                  className={`p-8 rounded-[3rem] shadow-2xl border-b-8 ${isLockedForOffline ? 'bg-red-600 border-red-900 text-white' : 'bg-red-500 text-white border-red-800'}`}
                 >
-                  <Lock size={80} className="mx-auto mb-6" />
-                  <h2 className="text-3xl font-black uppercase italic tracking-tighter mb-4">Metropolis Lockdown</h2>
+                  {isLockedForOffline ? <WifiOff size={80} className="mx-auto mb-6" /> : <Lock size={80} className="mx-auto mb-6" />}
+                  <h2 className="text-3xl font-black uppercase italic tracking-tighter mb-4">
+                    {isLockedForOffline ? 'Uplink Severed' : 'Metropolis Lockdown'}
+                  </h2>
                   <p className="text-sm font-bold opacity-90 leading-relaxed uppercase tracking-widest max-w-sm mx-auto">
-                    You must register an email account to be a permanent mooderia citizen.
+                    {isLockedForOffline 
+                      ? 'Global communication requires a live neural link. Restore connection to access the Citizen Hub.'
+                      : 'You must register an email account to be a permanent mooderia citizen.'}
                   </p>
-                  <button onClick={() => handleLogout()} className="mt-8 px-10 py-5 bg-white text-red-600 rounded-2xl font-black uppercase text-sm shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 mx-auto">
-                    <UserPlus size={20} /> SIGN UP
-                  </button>
+                  {!isLockedForOffline && (
+                    <button onClick={() => handleLogout()} className="mt-8 px-10 py-5 bg-white text-red-600 rounded-2xl font-black uppercase text-sm shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 mx-auto">
+                      <UserPlus size={20} /> SIGN UP
+                    </button>
+                  )}
+                  {isLockedForOffline && (
+                    <div className="mt-8 px-6 py-3 bg-black/20 rounded-xl font-black text-[10px] uppercase tracking-[0.2em]">
+                       Waiting for signal...
+                    </div>
+                  )}
                 </motion.div>
               </div>
             ) : (
@@ -359,6 +391,14 @@ const App: React.FC = () => {
                     onViolation={() => {}}
                   />
                 )}
+                {activeSection === 'Psychiatrist' && (
+                  <PsychiatristSection 
+                    currentUser={currentUser!} 
+                    isDarkMode={isDarkMode} 
+                    messages={allMessages} 
+                    onSendMessage={(text) => handleSendMessage('DrPinel', text)} 
+                  />
+                )}
                 {activeSection === 'Mood' && (
                   <MoodSection 
                     isGuest={isGuest} 
@@ -368,8 +408,8 @@ const App: React.FC = () => {
                     onHeart={handleHeart} 
                     isOffline={isOffline}
                     onAddDiaryEntry={handleAddDiaryEntry}
-                    onDeletePost={() => {}} 
-                    onEditPost={() => {}} 
+                    onDeletePost={(id) => setAllPosts(prev => prev.filter(p => p.id !== id))} 
+                    onEditPost={(id, content) => setAllPosts(prev => prev.map(p => p.id === id ? {...p, content} : p))} 
                     onComment={() => {}} 
                     onCommentInteraction={() => {}} 
                     onRepost={() => {}} 
@@ -384,17 +424,7 @@ const App: React.FC = () => {
                 {activeSection === 'Zodiac' && <ZodiacSection isDarkMode={isDarkMode} />}
                 {activeSection === 'Notifications' && <NotificationsSection notifications={notifications.filter(n => n.recipient === currentUser!.username)} isDarkMode={isDarkMode} onMarkRead={() => {}} />}
                 {activeSection === 'Profile' && currentUser && <ProfileSection user={allUsers.find(u => u.username === viewingUsername) || currentUser} allPosts={allPosts} isDarkMode={isDarkMode} currentUser={currentUser} onEditProfile={(dn, un, pp, ti, bp, pc, bi) => { setCurrentUser({...currentUser!, displayName: dn, username: un, profilePic: pp, title: ti, profileColor: pc, bio: bi}); }} />}
-                {activeSection === 'Settings' && (
-                  <SettingsSection 
-                    isDarkMode={isDarkMode} 
-                    onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} 
-                    onLogout={handleLogout} 
-                    user={currentUser!} 
-                    onUnblock={() => {}} 
-                    isElectron={isElectron}
-                    isCapacitor={isCapacitor}
-                  />
-                )}
+                {activeSection === 'Settings' && <SettingsSection isDarkMode={isDarkMode} onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} onLogout={handleLogout} user={currentUser!} onUnblock={() => {}} />}
               </>
             )}
           </motion.div>

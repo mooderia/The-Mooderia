@@ -114,33 +114,6 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
 
   return (
     <div className="flex flex-col h-full min-h-0 w-full relative">
-      {isOffline && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute inset-0 z-[100] backdrop-blur-md bg-black/40 flex items-center justify-center p-6 rounded-[2.5rem]"
-        >
-          <div className="bg-red-600 text-white p-10 rounded-[3rem] shadow-2xl border-b-8 border-red-900 max-w-md text-center">
-            <div className="relative inline-block mb-6">
-              <WifiOff size={80} className="text-white" />
-              <motion.div 
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="absolute -top-2 -right-2 bg-white rounded-full p-2"
-              >
-                <Lock size={24} className="text-red-600" />
-              </motion.div>
-            </div>
-            <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-4 leading-none">Citizen Hub Offline</h2>
-            <p className="text-sm font-bold opacity-90 leading-relaxed uppercase tracking-widest">
-              The Hub requires a live connection to the Metropolis Grid. Social resonance is currently suspended.
-            </p>
-            <div className="mt-8 px-6 py-3 bg-white/10 rounded-2xl border-2 border-white/20 inline-block">
-              <span className="text-[10px] font-black uppercase tracking-[0.3em]">Status: Reconnecting...</span>
-            </div>
-          </div>
-        </motion.div>
-      )}
       <div className="flex justify-between items-center mb-6 shrink-0 px-2">
         <h2 className={`text-3xl md:text-4xl font-black italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Citizen Hub</h2>
         <button disabled={isOffline} onClick={() => setIsCreatingGroup(true)} className="kahoot-button-blue px-6 py-3 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 text-xs disabled:opacity-50 disabled:grayscale">
@@ -149,6 +122,17 @@ const CityHallSection: React.FC<CityHallSectionProps> = ({ isDarkMode, currentUs
       </div>
 
       <div className={`flex-1 flex flex-col md:flex-row rounded-[3rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-2xl overflow-hidden border-4 border-black/5 relative min-h-0 h-full`}>
+        {isOffline && (
+           <div className="absolute inset-0 z-[80] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-12">
+              <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="bg-red-500 text-white p-8 rounded-[3rem] shadow-2xl border-b-8 border-red-800">
+                <WifiOff size={60} className="mx-auto mb-4" />
+                <h3 className="text-2xl font-black uppercase italic tracking-tighter mb-2">Neural Connection Lost</h3>
+                <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest max-w-xs mx-auto">
+                   Real-time communication requires an active Metropolis uplink.
+                </p>
+              </motion.div>
+           </div>
+        )}
 
         {/* Sidebar */}
         <div className={`w-full md:w-64 lg:w-80 border-r ${isDarkMode ? 'border-slate-800' : 'border-gray-100'} flex flex-col ${selectedCitizen ? 'hidden md:flex' : 'flex'} min-h-0 h-full`}>

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Send, Sparkles, Brain, Clock, Globe, Users, Trophy, MessageSquare, Repeat, Reply, ShieldAlert, Activity, Stethoscope, Trash2, Edit, X, Lock, WifiOff, Book, Plus, Calendar } from 'lucide-react';
+import { Heart, Send, Sparkles, Brain, Clock, Globe, Users, Trophy, MessageSquare, Repeat, Reply, ShieldAlert, Activity, Stethoscope, Trash2, Edit, X, Lock, WifiOff, Book, Plus, Calendar, Bookmark } from 'lucide-react';
 import { User, Post, Comment, DiaryEntry, Mood } from '../types';
 import MoodPetSection from './MoodPetSection';
 import { STREAK_BADGES } from '../constants';
@@ -17,6 +17,7 @@ interface MoodSectionProps {
   onCommentInteraction: (postId: string, commentId: string, action: 'heart' | 'reply', replyText?: string) => void;
   onRepost: (post: Post) => void;
   onFollow: (username: string) => void;
+  onFollowUsername?: (username: string) => void; // Fixed mismatch
   onBlock: (username: string) => void;
   isDarkMode: boolean;
   onNavigateToProfile: (username: string) => void;
@@ -70,7 +71,9 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
     setIsBroadcasting(true);
     onPost(postContent, postVisibility);
     setPostContent('');
-    setIsBroadcasting(false);
+    // Give immediate feedback
+    setTimeout(() => setIsBroadcasting(true), 800);
+    setTimeout(() => setIsBroadcasting(false), 1600);
   };
 
   const handleSaveDiary = () => {
@@ -225,7 +228,12 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
     <div className="flex flex-col gap-6 pb-20 h-full min-h-0">
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 shrink-0">
         {['Express', 'Diary', 'Teller', 'Scan', 'Mood Pet'].map((t) => (
-          <button key={t} onClick={() => setSubTab(t as any)} className={`px-5 py-2.5 rounded-full font-black text-[10px] md:text-xs transition-all whitespace-nowrap uppercase tracking-tighter border-b-4 ${subTab === t ? 'bg-custom border-black/20 text-white shadow-lg translate-y-[-2px]' : isDarkMode ? 'bg-slate-800 border-slate-900 text-white/30' : 'bg-white border-gray-100 text-slate-500'}`}>
+          <button 
+            key={t} 
+            onClick={() => setSubTab(t as any)} 
+            className={`px-5 py-2.5 rounded-full font-black text-[10px] md:text-xs transition-all whitespace-nowrap uppercase tracking-tighter border-b-4 ${subTab === t ? 'bg-custom border-black/20 text-white shadow-lg translate-y-[-2px]' : isDarkMode ? 'bg-slate-800 border-slate-900 text-white/30' : 'bg-white border-gray-100 text-slate-500'} ${isOffline && t === 'Express' ? 'border-red-500/30 grayscale-[0.5]' : ''}`}
+          >
+            {t === 'Express' && isOffline && <WifiOff size={12} className="inline mr-1 text-red-600" />}
             {t}
           </button>
         ))}
@@ -234,44 +242,17 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
       <div className="flex-1 min-h-0 relative">
         <AnimatePresence mode="wait">
           {subTab === 'Express' && (
-            <motion.div 
-              key="express"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="h-full flex flex-col relative"
-            >
-              {isOffline && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="absolute inset-0 z-[100] backdrop-blur-md bg-black/40 flex items-center justify-center p-6 rounded-[3rem]"
-                >
-                  <div className="bg-indigo-600 text-white p-10 rounded-[3rem] shadow-2xl border-b-8 border-indigo-900 max-w-md text-center">
-                    <div className="relative inline-block mb-6">
-                      <WifiOff size={80} className="text-white" />
-                      <motion.div 
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ repeat: Infinity, duration: 2 }}
-                        className="absolute -top-2 -right-2 bg-white rounded-full p-2"
-                      >
-                        <Lock size={24} className="text-indigo-600" />
-                      </motion.div>
-                    </div>
-                    <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-4 leading-none">Express Offline</h2>
-                    <p className="text-sm font-bold opacity-90 leading-relaxed uppercase tracking-widest">
-                      The Metropolis Express feed requires a live uplink to synchronize worldwide broadcasts.
-                    </p>
-                    <div className="mt-8 px-6 py-3 bg-white/10 rounded-2xl border-2 border-white/20 inline-block">
-                      <span className="text-[10px] font-black uppercase tracking-[0.3em]">Status: Reconnecting...</span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              <div className="h-full overflow-y-auto fading-scrollbar pr-2 space-y-6 pb-20">
-              {!isGuest ? (
-                <div className={`p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] ${isDarkMode ? 'bg-slate-900 border-white/5' : 'bg-white border-black/5'} border-4 shadow-2xl`}>
+            <motion.div key="express" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto fading-scrollbar pr-2 space-y-6 pb-20">
+              {isOffline ? (
+                <div className={`p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} border-4 border-dashed border-red-600/30 flex flex-col items-center justify-center text-center py-20`}>
+                  <WifiOff size={60} className="mb-6 text-red-600 opacity-60 animate-pulse" />
+                  <h3 className="text-2xl font-black uppercase italic tracking-tighter mb-4 text-red-600">Signal Severed</h3>
+                  <p className="text-[12px] font-black uppercase tracking-widest text-red-600/60 leading-relaxed max-w-xs">
+                    Metropolis Express frequencies require a live neural link. Broadcasting is disabled until connection is restored.
+                  </p>
+                </div>
+              ) : !isGuest ? (
+                <div className={`p-6 md:p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white'} border-4 border-black/5 shadow-xl`}>
                   <textarea 
                     value={postContent} 
                     onChange={(e) => setPostContent(e.target.value)} 
@@ -303,158 +284,183 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                 </div>
               )}
 
-              <div className="flex gap-2 bg-black/5 p-1 rounded-xl w-fit">
-                <button onClick={() => setFeedFilter('Global')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${feedFilter === 'Global' ? 'bg-white text-custom shadow-sm' : 'opacity-40'}`}>Metropolis Feed</button>
-                <button onClick={() => setFeedFilter('Circle')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${feedFilter === 'Circle' ? 'bg-white text-custom shadow-sm' : 'opacity-40'}`}>Neural Circle</button>
-              </div>
+              {/* Feed logic remains for when user IS online or has cached feed */}
+              {!isOffline && (
+                <>
+                  <div className="flex gap-2 bg-black/5 p-1 rounded-xl w-fit">
+                    <button onClick={() => setFeedFilter('Global')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${feedFilter === 'Global' ? 'bg-white text-custom shadow-sm' : 'opacity-40'}`}>Metropolis Feed</button>
+                    <button onClick={() => setFeedFilter('Circle')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${feedFilter === 'Circle' ? 'bg-white text-custom shadow-sm' : 'opacity-40'}`}>Neural Circle</button>
+                  </div>
 
-              <div className="space-y-6 pb-12">
-                {filteredPosts.length > 0 ? filteredPosts.map(post => {
-                  const isAuthor = post.author === user.username;
-                  const isLiked = post.likes.includes(user.username);
-                  
-                  return (
-                    <motion.div key={post.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-6 rounded-[2rem] ${isDarkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'} border-2 border-black/5 shadow-md`}>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => onNavigateToProfile(post.author)} className="w-10 h-10 rounded-xl bg-custom text-white font-black shrink-0 text-xl flex items-center justify-center italic shadow-sm active:scale-95 transition-transform">{post.author[0].toUpperCase()}</button>
-                          <div>
-                            <button onClick={() => onNavigateToProfile(post.author)} className="font-black text-sm hover:text-custom transition-colors">@{post.author}</button>
-                            <p className="text-[9px] font-black opacity-30 uppercase tracking-widest flex items-center gap-1"><Clock size={10}/> {formatTime(post.timestamp)}</p>
+                  <div className="space-y-6 pb-12">
+                    {filteredPosts.length > 0 ? filteredPosts.map(post => {
+                      const isAuthor = post.author === user.username;
+                      const isLiked = post.likes.includes(user.username);
+                      
+                      return (
+                        <motion.div key={post.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-6 rounded-[2rem] ${isDarkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'} border-2 border-black/5 shadow-md`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => onNavigateToProfile(post.author)} className="w-10 h-10 rounded-xl bg-custom text-white font-black shrink-0 text-xl flex items-center justify-center italic shadow-sm active:scale-95 transition-transform">{post.author[0].toUpperCase()}</button>
+                              <div>
+                                <button onClick={() => onNavigateToProfile(post.author)} className="font-black text-sm hover:text-custom transition-colors">@{post.author}</button>
+                                <p className="text-[9px] font-black opacity-30 uppercase tracking-widest flex items-center gap-1"><Clock size={10}/> {formatTime(post.timestamp)}</p>
+                              </div>
+                            </div>
+                            {isAuthor && !isGuest && !isOffline && (
+                              <div className="flex gap-2">
+                                 <button onClick={() => handleStartEdit(post)} className="p-2 bg-black/5 hover:bg-black/10 rounded-xl transition-all text-blue-500"><Edit size={16}/></button>
+                                 <button onClick={() => onDeletePost(post.id)} className="p-2 bg-black/5 hover:bg-black/10 rounded-xl transition-all text-red-500"><Trash2 size={16}/></button>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        {isAuthor && !isGuest && !isOffline && (
-                          <div className="flex gap-2">
-                             <button onClick={() => handleStartEdit(post)} className="p-2 bg-black/5 hover:bg-black/10 rounded-xl transition-all text-blue-500"><Edit size={16}/></button>
-                             <button onClick={() => onDeletePost(post.id)} className="p-2 bg-black/5 hover:bg-black/10 rounded-xl transition-all text-red-500"><Trash2 size={16}/></button>
+
+                          {editingPostId === post.id && !isGuest && !isOffline ? (
+                            <div className="space-y-4 mb-6">
+                               <textarea value={editBuffer} onChange={e => setEditBuffer(e.target.value)} className={`w-full p-4 rounded-2xl border-2 font-bold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100 text-slate-900'} outline-none focus:border-custom`} rows={3} />
+                               <div className="flex gap-2">
+                                 <button onClick={handleSaveEdit} className="bg-custom text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-md">Update Signal</button>
+                                 <button onClick={() => setEditingPostId(null)} className="bg-black/5 px-4 py-2 rounded-xl font-black text-[10px] uppercase">Cancel</button>
+                               </div>
+                            </div>
+                          ) : (
+                            <>
+                              {post.isRepost && <div className="flex items-center gap-2 text-[10px] font-black text-green-500 uppercase italic mb-2"><Repeat size={12}/> Echoing: @{post.originalAuthor}</div>}
+                              <p className="text-base font-bold italic opacity-90 mb-6 leading-relaxed break-words">"{post.content}"</p>
+                            </>
+                          )}
+
+                          <div className="flex items-center gap-6 pt-4 border-t border-black/5">
+                            <div className="flex items-center gap-1.5">
+                               <button disabled={isGuest || isOffline} onClick={() => onHeart(post.id)} className={`flex items-center gap-1.5 ${isLiked ? 'text-custom' : 'opacity-40'} font-black text-[10px] uppercase transition-all active:scale-95 ${isGuest || isOffline ? 'cursor-not-allowed' : ''}`}>
+                                 <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
+                               </button>
+                               <button onClick={() => setLikersModalPost(post)} className="text-custom font-black text-[10px] hover:underline transition-all">
+                                 {post.likes.length} SYNC
+                               </button>
+                            </div>
+                            <button onClick={() => setExpandedPostId(expandedPostId === post.id ? null : post.id)} className="flex items-center gap-1.5 text-blue-500 font-black text-[10px] uppercase"><MessageSquare size={16} /> {post.comments?.length || 0} ECHO</button>
+                            <button disabled={isGuest || isOffline} onClick={() => onRepost(post)} className={`flex items-center gap-1.5 text-green-500 font-black text-[10px] uppercase transition-transform active:scale-95 ${isGuest || isOffline ? 'opacity-30 cursor-not-allowed' : ''}`}><Repeat size={16} /> ECHO RE-SIGNAL</button>
                           </div>
-                        )}
-                      </div>
 
-                      {editingPostId === post.id && !isGuest && !isOffline ? (
-                        <div className="space-y-4 mb-6">
-                           <textarea value={editBuffer} onChange={e => setEditBuffer(e.target.value)} className={`w-full p-4 rounded-2xl border-2 font-bold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100 text-slate-900'} outline-none focus:border-custom`} rows={3} />
-                           <div className="flex gap-2">
-                             <button onClick={handleSaveEdit} className="bg-custom text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-md">Update Signal</button>
-                             <button onClick={() => setEditingPostId(null)} className="bg-black/5 px-4 py-2 rounded-xl font-black text-[10px] uppercase">Cancel</button>
-                           </div>
-                        </div>
-                      ) : (
-                        <>
-                          {post.isRepost && <div className="flex items-center gap-2 text-[10px] font-black text-green-500 uppercase italic mb-2"><Repeat size={12}/> Echoing: @{post.originalAuthor}</div>}
-                          <p className="text-base font-bold italic opacity-90 mb-6 leading-relaxed break-words">"{post.content}"</p>
-                        </>
-                      )}
+                          <AnimatePresence>
+                            {expandedPostId === post.id && (
+                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                 <div className="pt-6 space-y-4">
+                                    {!isGuest && !isOffline && (
+                                      <div className="flex gap-2">
+                                        <input 
+                                          type="text" 
+                                          value={commentInputs[post.id] || ''} 
+                                          onChange={e => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                          placeholder="Add an echo to this signal..." 
+                                          className={`flex-1 p-3 rounded-xl border-2 text-xs font-bold outline-none focus:border-custom ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100'}`}
+                                          onKeyPress={e => e.key === 'Enter' && handleAddComment(post.id)}
+                                        />
+                                        <button onClick={() => handleAddComment(post.id)} className="bg-custom text-white px-4 rounded-xl shadow-md transition-transform active:scale-95"><Send size={16} /></button>
+                                      </div>
+                                    )}
 
-                      <div className="flex items-center gap-6 pt-4 border-t border-black/5">
-                        <div className="flex items-center gap-1.5">
-                           <button disabled={isGuest || isOffline} onClick={() => onHeart(post.id)} className={`flex items-center gap-1.5 ${isLiked ? 'text-custom' : 'opacity-40'} font-black text-[10px] uppercase transition-all active:scale-95 ${isGuest || isOffline ? 'cursor-not-allowed' : ''}`}>
-                             <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
-                           </button>
-                           <button onClick={() => setLikersModalPost(post)} className="text-custom font-black text-[10px] hover:underline transition-all">
-                             {post.likes.length} SYNC
-                           </button>
-                        </div>
-                        <button onClick={() => setExpandedPostId(expandedPostId === post.id ? null : post.id)} className="flex items-center gap-1.5 text-blue-500 font-black text-[10px] uppercase"><MessageSquare size={16} /> {post.comments?.length || 0} ECHO</button>
-                        <button disabled={isGuest || isOffline} onClick={() => onRepost(post)} className={`flex items-center gap-1.5 text-green-500 font-black text-[10px] uppercase transition-transform active:scale-95 ${isGuest || isOffline ? 'opacity-30 cursor-not-allowed' : ''}`}><Repeat size={16} /> ECHO RE-SIGNAL</button>
-                      </div>
-
-                      <AnimatePresence>
-                        {expandedPostId === post.id && (
-                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                             <div className="pt-6 space-y-4">
-                                {!isGuest && !isOffline && (
-                                  <div className="flex gap-2">
-                                    <input 
-                                      type="text" 
-                                      value={commentInputs[post.id] || ''} 
-                                      onChange={e => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                                      placeholder="Add an echo to this signal..." 
-                                      className={`flex-1 p-3 rounded-xl border-2 text-xs font-bold outline-none focus:border-custom ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100'}`}
-                                      onKeyPress={e => e.key === 'Enter' && handleAddComment(post.id)}
-                                    />
-                                    <button onClick={() => handleAddComment(post.id)} className="bg-custom text-white px-4 rounded-xl shadow-md transition-transform active:scale-95"><Send size={16} /></button>
-                                  </div>
-                                )}
-
-                                <div className="space-y-4 max-h-[400px] overflow-y-auto fading-scrollbar pr-2">
-                                  {post.comments?.length > 0 ? (
-                                    post.comments.map(c => renderComment(post.id, c))
-                                  ) : (
-                                    <p className="text-[10px] font-black uppercase opacity-20 text-center py-4 tracking-widest">No echoes yet.</p>
-                                  )}
-                                </div>
-                             </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  );
-                }) : <div className="py-20 text-center opacity-20 font-black uppercase italic text-lg tracking-widest">The metropolis is quiet.</div>}
-              </div>
-            </div>
-          </motion.div>
-        )}
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto fading-scrollbar pr-2">
+                                      {post.comments?.length > 0 ? (
+                                        post.comments.map(c => renderComment(post.id, c))
+                                      ) : (
+                                        <p className="text-[10px] font-black uppercase opacity-20 text-center py-4 tracking-widest">No echoes yet.</p>
+                                      )}
+                                    </div>
+                                 </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      );
+                    }) : <div className="py-20 text-center opacity-20 font-black uppercase italic text-lg tracking-widest">The metropolis is quiet.</div>}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
 
           {subTab === 'Diary' && (
             <motion.div key="diary" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto fading-scrollbar pr-2 space-y-6 pb-20">
-              <div className="flex justify-between items-center px-2">
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter">My Neural Logs</h3>
+              <div className="flex justify-between items-center px-4 py-2 bg-indigo-50/50 dark:bg-slate-800/50 rounded-3xl border border-indigo-100/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-[#26890c] rounded-2xl text-white shadow-lg"><Book size={20} /></div>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter">Archives</h3>
+                </div>
                 <button 
                   onClick={() => setIsAddingDiary(true)} 
-                  className="kahoot-button-green px-6 py-3 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 text-xs"
+                  className="kahoot-button-green px-5 py-2.5 rounded-2xl text-white font-black flex items-center gap-2 shadow-lg active:scale-95 text-[10px] uppercase tracking-widest"
                 >
-                  <Plus size={18} /> NEW LOG
+                  <Plus size={16} /> WRITE LOG
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
                 {diaryEntries.length > 0 ? diaryEntries.map(entry => (
                   <motion.div 
                     key={entry.id} 
                     initial={{ opacity: 0, rotateY: -10 }} 
                     animate={{ opacity: 1, rotateY: 0 }} 
-                    className={`p-6 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-black/5'} border-4 shadow-xl relative overflow-hidden group hover:-translate-y-1 transition-all`}
+                    className={`relative p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900 border-white/5' : 'bg-orange-50/30 border-orange-100'} border-4 shadow-xl overflow-hidden group hover:-translate-y-1 transition-all`}
                   >
-                    <div className="absolute top-0 right-0 w-12 h-12 bg-custom/10 rounded-bl-[2rem] flex items-center justify-center text-custom">
-                       <Book size={18} />
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-orange-400/10 dark:bg-orange-400/5 rounded-bl-[4rem] flex items-center justify-center text-orange-500/30">
+                       <Bookmark size={24} />
                     </div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="p-2 bg-black/5 rounded-xl text-lg">{entry.mood === 'Wonderful' ? '✨' : entry.mood === 'Excited' ? '🤩' : entry.mood === 'Happy' ? '😊' : entry.mood === 'Normal' ? '😐' : entry.mood === 'Tired' ? '😴' : entry.mood === 'Angry' ? '😡' : '🔥'}</span>
-                      <div>
-                        <h4 className="font-black text-sm uppercase italic leading-none">{entry.title}</h4>
-                        <p className="text-[9px] font-black opacity-30 uppercase tracking-widest mt-1 flex items-center gap-1"><Calendar size={10}/> {new Date(entry.timestamp).toLocaleDateString()}</p>
+                    
+                    <div className="relative z-10">
+                      <div className="flex items-start gap-4 mb-6">
+                        <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-3xl shadow-md border border-black/5 shrink-0">
+                          {entry.mood === 'Wonderful' ? '✨' : entry.mood === 'Excited' ? '🤩' : entry.mood === 'Happy' ? '😊' : entry.mood === 'Normal' ? '😐' : entry.mood === 'Tired' ? '😴' : entry.mood === 'Angry' ? '😡' : '🔥'}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-black text-lg uppercase italic leading-none mb-1 truncate">{entry.title}</h4>
+                          <div className="flex items-center gap-2 opacity-30">
+                            <Calendar size={12} />
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em]">{new Date(entry.timestamp).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <div className="absolute -left-2 top-0 bottom-0 w-0.5 bg-orange-400/20 dark:bg-orange-400/10" />
+                        <p className="text-sm md:text-base font-bold opacity-80 leading-relaxed italic pl-4 line-clamp-4 dark:text-orange-50">"{entry.content}"</p>
                       </div>
                     </div>
-                    <p className="text-sm font-bold opacity-70 leading-relaxed italic line-clamp-3">"{entry.content}"</p>
+                    <div className="mt-6 flex justify-end">
+                      <span className="text-[8px] font-black uppercase opacity-20 tracking-widest">Log #{entry.id.slice(0, 4)}</span>
+                    </div>
                   </motion.div>
                 )) : (
                   <div className="col-span-full py-20 text-center opacity-20 font-black uppercase italic text-lg tracking-widest flex flex-col items-center gap-4">
                     <Book size={60} />
-                    The archives are empty.
+                    The archives are silent...
                   </div>
                 )}
               </div>
 
               <AnimatePresence>
                 {isAddingDiary && (
-                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900' : 'bg-white'} w-full max-w-2xl rounded-[3rem] p-10 border-4 border-black/5 shadow-2xl relative flex flex-col max-h-[90vh]`}>
-                       <button onClick={() => setIsAddingDiary(false)} className="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-all"><X size={32}/></button>
-                       <div className="mb-8">
-                         <h3 className="text-3xl font-black italic uppercase tracking-tighter">New Neural Log</h3>
-                         <p className="text-[10px] font-black opacity-40 uppercase tracking-widest mt-1">Metropolis Private Archive</p>
+                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`${isDarkMode ? 'bg-slate-900' : 'bg-[#fffcf0]'} w-full max-w-2xl rounded-[3rem] p-10 border-4 border-black/5 shadow-2xl relative flex flex-col max-h-[90vh] text-slate-900`}>
+                       <button onClick={() => setIsAddingDiary(false)} className="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-all dark:text-white"><X size={32}/></button>
+                       
+                       <div className="mb-8 dark:text-white">
+                         <div className="flex items-center gap-3 mb-2">
+                           <Book className="text-[#26890c]" size={32} />
+                           <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Record Neural Log</h3>
+                         </div>
+                         <p className="text-[10px] font-black opacity-40 uppercase tracking-widest ml-11">Metropolis Private Archive</p>
                        </div>
 
-                       <div className="space-y-6 overflow-y-auto fading-scrollbar pr-2">
+                       <div className="space-y-6 overflow-y-auto fading-scrollbar pr-2 dark:text-white">
                           <div className="space-y-2">
                             <p className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Log Designation (Title)</p>
                             <input 
                               type="text" 
                               value={diaryTitle} 
                               onChange={e => setDiaryTitle(e.target.value)} 
-                              placeholder="Title your frequency..." 
-                              className="w-full p-4 rounded-2xl border-2 bg-black/5 font-black text-lg outline-none focus:border-custom"
+                              placeholder="Designation of your frequency..." 
+                              className={`w-full p-4 rounded-2xl border-2 font-black text-lg outline-none focus:border-custom ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-black/5 border-transparent text-slate-900'}`}
                             />
                           </div>
 
@@ -465,7 +471,7 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                                  <button 
                                    key={m} 
                                    onClick={() => setDiaryMood(m as Mood)} 
-                                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${diaryMood === m ? 'bg-custom text-white border-custom' : 'bg-black/5 border-transparent opacity-60'}`}
+                                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${diaryMood === m ? 'bg-[#26890c] text-white border-[#26890c]' : isDarkMode ? 'bg-white/5 border-transparent text-white opacity-40' : 'bg-black/5 border-transparent text-slate-500 opacity-60'}`}
                                  >
                                    {m}
                                  </button>
@@ -474,21 +480,24 @@ const MoodSection: React.FC<MoodSectionProps> = ({ user, posts, onPost, onHeart,
                           </div>
 
                           <div className="space-y-2">
-                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">The Frequency (Content)</p>
-                            <textarea 
-                              value={diaryContent} 
-                              onChange={e => setDiaryContent(e.target.value)} 
-                              placeholder="Describe your inner metropolis..." 
-                              className="w-full p-6 rounded-[2rem] border-2 bg-black/5 font-bold text-base outline-none focus:border-custom min-h-[200px]"
-                            ></textarea>
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Frequency Content (Story)</p>
+                            <div className="relative">
+                               <textarea 
+                                value={diaryContent} 
+                                onChange={e => setDiaryContent(e.target.value)} 
+                                placeholder="Pour your soul into the city archives..." 
+                                className={`w-full p-8 rounded-[2.5rem] border-2 font-bold text-base outline-none focus:border-custom min-h-[250px] italic leading-relaxed ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-orange-50/30 border-orange-200/50 text-slate-800'}`}
+                              ></textarea>
+                              {!isDarkMode && <div className="absolute top-0 bottom-0 left-6 w-0.5 bg-orange-200/50" />}
+                            </div>
                           </div>
 
                           <button 
                             onClick={handleSaveDiary} 
                             disabled={!diaryTitle.trim() || !diaryContent.trim()}
-                            className="kahoot-button-custom w-full py-5 rounded-2xl text-white font-black uppercase text-base shadow-xl active:scale-95 disabled:opacity-50 mt-4"
+                            className="kahoot-button-green w-full py-5 rounded-2xl text-white font-black uppercase text-base shadow-xl active:scale-95 disabled:opacity-50 mt-4 transition-all"
                           >
-                            ARCHIVE LOG
+                            SEAL PRIVATE ARCHIVE
                           </button>
                        </div>
                     </motion.div>
