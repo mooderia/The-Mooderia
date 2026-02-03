@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Home, Smile, Building2, Mail, User as UserIcon, Settings } from 'lucide-react';
+import { Home, Smile, Building2, Mail, User as UserIcon, Settings, Star, Stethoscope } from 'lucide-react';
 import { Section, User } from '../types';
 import { t } from '../constants';
 
@@ -17,6 +16,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isDarkMode
   const items: { id: Section, icon: any, labelKey: string, color: string }[] = [
     { id: 'Home', icon: Home, labelKey: 'home', color: 'bg-indigo-600' },
     { id: 'Mood', icon: Smile, labelKey: 'mood', color: 'bg-green-600' },
+    { id: 'Zodiac', icon: Star, labelKey: 'zodiac', color: 'bg-yellow-500' },
+    { id: 'Psychiatrist', icon: Stethoscope, labelKey: 'psychiatrist', color: 'bg-blue-500' },
     { id: 'CityHall', icon: Building2, labelKey: 'cityHall', color: 'bg-red-600' },
     { id: 'Mails', icon: Mail, labelKey: 'mails', color: 'bg-yellow-500' },
     { id: 'Profile', icon: UserIcon, labelKey: 'profile', color: 'bg-blue-600' },
@@ -34,15 +35,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isDarkMode
       </div>
 
       {/* Mobile Bottom Nav */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 flex items-center justify-around px-2 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-100'} border-t shadow-2xl`}>
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 flex items-center justify-around px-2 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-100'} border-t shadow-2xl overflow-x-auto no-scrollbar`}>
         {items.map(item => (
           <button 
             key={item.id} 
             onClick={() => onNavigate(item.id)}
-            className={`flex flex-col items-center gap-1 transition-all ${activeSection === item.id ? 'text-indigo-600 scale-110' : 'text-slate-400 opacity-60'}`}
+            className={`flex flex-col items-center gap-1 transition-all min-w-[50px] ${activeSection === item.id ? 'text-indigo-600 scale-110' : 'text-slate-400 opacity-60'}`}
           >
-            <item.icon size={20} />
-            <span className="text-[9px] font-black uppercase tracking-tighter">{t(item.labelKey as any, language)}</span>
+            <item.icon size={18} />
+            <span className="text-[8px] font-black uppercase tracking-tighter">{t(item.labelKey as any, language)}</span>
           </button>
         ))}
       </nav>
@@ -54,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isDarkMode
           <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.3em]">Metropolis Hub</p>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-1 overflow-y-auto no-scrollbar pb-10">
           {items.map(item => (
             <button 
               key={item.id} 

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Section, Notification, Mood } from './types';
+import { User, Section, Notification, Mood, Message } from './types';
 import Sidebar from './components/Sidebar';
 import HomeSection from './sections/HomeSection';
 import MoodSection from './sections/MoodSection';
+import ZodiacSection from './sections/ZodiacSection';
+import PsychiatristSection from './sections/PsychiatristSection';
 import CityHallSection from './sections/CityHallSection';
 import MailSection from './sections/MailSection';
 import ProfileSection from './sections/ProfileSection';
@@ -28,6 +30,7 @@ const App: React.FC = () => {
   
   const [centralAnimation, setCentralAnimation] = useState<{ type: AnimationType, text?: string } | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -57,12 +60,29 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
+  // Handle AI responses from PsychiatristSection via Custom Event
+  useEffect(() => {
+    const handleAiResponse = async (e: any) => {
+      const aiMessage: Message = e.detail;
+      await sendMessageCloud(aiMessage.sender, aiMessage.recipient, aiMessage.text);
+      // Refresh local messages cache immediately for UI responsiveness
+      if (currentUser) {
+        const freshMsgs = await fetchUserMessages(currentUser.username);
+        setMessages(freshMsgs);
+      }
+    };
+    window.addEventListener('ai-response', handleAiResponse);
+    return () => window.removeEventListener('ai-response', handleAiResponse);
+  }, [currentUser?.username]);
+
   useEffect(() => {
     if (!currentUser) return;
 
     const pollData = async () => {
-      const messages = await fetchUserMessages(currentUser.username);
-      const mailNotifications: Notification[] = messages.map((m: any) => ({
+      const msgs = await fetchUserMessages(currentUser.username);
+      setMessages(msgs);
+
+      const mailNotifications: Notification[] = msgs.map((m: any) => ({
         id: m.id,
         type: 'mail',
         title: `From @${m.sender}`,
@@ -98,7 +118,6 @@ const App: React.FC = () => {
                 const newItems = allFreshNotifs.filter(n => !existingIds.has(n.id));
 
                 if (newItems.length > 0) {
-                  // Only alert if the new items are unread
                   const unreadNewMails = newItems.filter(n => n.type === 'mail' && !n.read);
                   const unreadNewReqs = newItems.filter(n => n.type === 'friend_request' && !n.read);
 
@@ -189,7 +208,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    clearSession(); // NEW: Remove stored session
+    clearSession(); 
     setCurrentUser(null);
     setIsAppStarting(true);
     setTimeout(() => setIsAppStarting(false), 1000);
@@ -198,7 +217,14 @@ const App: React.FC = () => {
   const handleSendMail = async (recipient: string, message: string) => {
     if (!currentUser) return;
     const success = await sendMessageCloud(currentUser.username, recipient, message);
-    if (success) showToast("Sent!", `Express mail delivered to @${recipient}`);
+    if (success) {
+      if (recipient !== 'DrPinel') {
+        showToast("Sent!", `Express mail delivered to @${recipient}`);
+      }
+      // Update local state immediately
+      const freshMsgs = await fetchUserMessages(currentUser.username);
+      setMessages(freshMsgs);
+    }
   };
 
   const renderCentralAnimation = () => {
@@ -298,6 +324,10 @@ const App: React.FC = () => {
                   {activeSection === 'Home' && <motion.div key="home" initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} exit={{opacity:0}}><HomeSection user={currentUser} isDarkMode={isDarkMode} language={language} /></motion.div>}
                   
                   {activeSection === 'Mood' && <motion.div key="mood" initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} exit={{opacity:0}} className="h-full"><MoodSection user={currentUser} onUpdate={handleUpdateUser} isDarkMode={isDarkMode} language={language} onReward={() => handleGainReward(1, 10)} triggerAnimation={triggerAnimation} /></motion.div>}
+
+                  {activeSection === 'Zodiac' && <motion.div key="zodiac" initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} exit={{opacity:0}} className="h-full"><ZodiacSection isDarkMode={isDarkMode} /></motion.div>}
+
+                  {activeSection === 'Psychiatrist' && <motion.div key="psychiatrist" initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} exit={{opacity:0}} className="h-full"><PsychiatristSection currentUser={currentUser} isDarkMode={isDarkMode} messages={messages} onSendMessage={(text) => handleSendMail('DrPinel', text)} /></motion.div>}
                   
                   {activeSection === 'CityHall' && <motion.div key="cityhall" initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} exit={{opacity:0}} className="h-full"><CityHallSection user={currentUser} onUpdate={handleUpdateUser} isDarkMode={isDarkMode} language={language} onReward={() => handleGainReward(2, 20)} triggerAnimation={triggerAnimation} onSendMail={handleSendMail} /></motion.div>}
                   

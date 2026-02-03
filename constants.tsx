@@ -1,4 +1,3 @@
-
 import { Mood } from './types';
 
 export const JOB_TITLES = [
@@ -111,6 +110,8 @@ export const TRANSLATIONS = {
     welcome: "Welcome, Citizen!",
     home: "Home",
     mood: "Mood",
+    zodiac: "Zodiac",
+    psychiatrist: "Dr. Pinel",
     cityHall: "City Hall",
     mails: "Mails",
     profile: "Profile",
@@ -149,6 +150,8 @@ export const TRANSLATIONS = {
     welcome: "Mabuhay, Mamamayan!",
     home: "Tahanan",
     mood: "Damdamin",
+    zodiac: "Zodiac",
+    psychiatrist: "Dr. Pinel",
     cityHall: "Munisipyo",
     mails: "Sulat",
     profile: "Propayl",

@@ -1,4 +1,3 @@
-
 export type Mood = 'Wonderful' | 'Excited' | 'Happy' | 'Normal' | 'Tired' | 'Angry' | 'Flaming' | null;
 
 export interface DiaryEntry {
@@ -89,4 +88,4 @@ export interface Notification {
   actionId?: string; // For handling accepts
 }
 
-export type Section = 'Home' | 'Mood' | 'CityHall' | 'Mails' | 'Profile' | 'Settings';
+export type Section = 'Home' | 'Mood' | 'Zodiac' | 'Psychiatrist' | 'CityHall' | 'Mails' | 'Profile' | 'Settings';
